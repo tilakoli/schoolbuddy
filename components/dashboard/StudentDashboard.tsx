@@ -1,0 +1,158 @@
+import { Text, TouchableOpacity, View } from 'react-native';
+import { router } from 'expo-router';
+import { BorderRadius, Colors, FontSize, Shadow, Spacing } from '@/constants/theme';
+
+const STATS = [
+  { label: 'Enrolled classes', value: '6' },
+  { label: 'Assignments due', value: '3' },
+  { label: 'Average grade', value: '91%' },
+  { label: 'Announcements', value: '2' },
+] as const;
+
+const CLASSES = [
+  { name: 'Algebra I', teacher: 'Ms. Patel · Period 2', room: 'Room 108' },
+  { name: 'World History', teacher: 'Mr. Nguyen · Period 3', room: 'Room 214' },
+  { name: 'Biology', teacher: 'Dr. Alvarez · Period 5', room: 'Lab 3' },
+  { name: 'English Literature', teacher: 'Ms. Foster · Period 6', room: 'Room 119' },
+] as const;
+
+const ASSIGNMENTS = [
+  { title: 'Chapter 4 Quiz', className: 'Algebra I', due: 'Due tomorrow', status: 'warning' },
+  { title: 'Reading Response', className: 'English Literature', due: 'Due Friday', status: 'info' },
+  { title: 'Lab Report', className: 'Biology', due: 'Due Monday', status: 'info' },
+] as const;
+
+const STATUS_COLOR: Record<(typeof ASSIGNMENTS)[number]['status'], string> = {
+  warning: Colors.warning,
+  info: Colors.info,
+};
+
+export default function StudentDashboard({ name }: { name: string }) {
+  return (
+    <>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>Welcome back</Text>
+          <Text style={{ color: Colors.foreground, fontSize: 28, fontWeight: '700', marginTop: 2 }}>
+            {name}
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => router.push('/settings')}
+          accessibilityRole="button"
+          accessibilityLabel="Open settings"
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: BorderRadius.full,
+            backgroundColor: Colors.secondary,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ fontSize: 20 }}>⚙</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View
+        style={{
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          gap: Spacing.sm,
+          marginTop: Spacing.xl,
+        }}
+      >
+        {STATS.map((stat) => (
+          <View
+            key={stat.label}
+            style={{
+              flexBasis: '47%',
+              flexGrow: 1,
+              backgroundColor: Colors.card,
+              borderColor: Colors.border,
+              borderWidth: 1,
+              borderRadius: BorderRadius.lg,
+              padding: Spacing.md,
+              ...Shadow.card,
+            }}
+          >
+            <Text style={{ color: Colors.foreground, fontSize: FontSize['2xl'], fontWeight: '700' }}>
+              {stat.value}
+            </Text>
+            <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 2 }}>
+              {stat.label}
+            </Text>
+          </View>
+        ))}
+      </View>
+
+      <Text style={{ color: Colors.foreground, fontSize: FontSize.lg, fontWeight: '700', marginTop: Spacing.xl, marginBottom: Spacing.md }}>
+        My classes
+      </Text>
+      {CLASSES.map((classItem) => (
+        <View
+          key={classItem.name}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backgroundColor: Colors.card,
+            borderColor: Colors.border,
+            borderWidth: 1,
+            borderRadius: BorderRadius.lg,
+            padding: Spacing.md,
+            marginBottom: Spacing.sm,
+          }}
+        >
+          <View>
+            <Text style={{ color: Colors.foreground, fontSize: FontSize.md, fontWeight: '600' }}>
+              {classItem.name}
+            </Text>
+            <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 3 }}>
+              {classItem.teacher}
+            </Text>
+          </View>
+          <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>{classItem.room}</Text>
+        </View>
+      ))}
+
+      <Text style={{ color: Colors.foreground, fontSize: FontSize.lg, fontWeight: '700', marginTop: Spacing.xl, marginBottom: Spacing.md }}>
+        Upcoming assignments
+      </Text>
+      {ASSIGNMENTS.map((assignment) => (
+        <View
+          key={assignment.title}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: Colors.card,
+            borderColor: Colors.border,
+            borderWidth: 1,
+            borderRadius: BorderRadius.lg,
+            padding: Spacing.md,
+            marginBottom: Spacing.sm,
+          }}
+        >
+          <View
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: BorderRadius.full,
+              backgroundColor: STATUS_COLOR[assignment.status],
+              marginRight: Spacing.sm,
+            }}
+          />
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: Colors.foreground, fontSize: FontSize.md, fontWeight: '600' }}>
+              {assignment.title}
+            </Text>
+            <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 3 }}>
+              {assignment.className}
+            </Text>
+          </View>
+          <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>{assignment.due}</Text>
+        </View>
+      ))}
+    </>
+  );
+}
