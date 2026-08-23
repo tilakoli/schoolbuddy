@@ -54,10 +54,13 @@ Accounts for teachers and students are created by an administrator (in the Supab
 
 ```text
 app/
-  (app)/             Authenticated screens (dashboard, settings)
+  (app)/             Authenticated tabs: dashboard, classes/students (teacher),
+                      subjects (student), assignments, settings
+  class/[id].tsx     Class detail — roster + assignments for one class (top-level route)
   auth/              Sign in, password reset
 components/
   auth/              Shared authentication layouts
+  dashboard/          Admin/Teacher/StudentDashboard — role-specific dashboard content
   shared/            Reusable UI primitives
 constants/           Product configuration and design tokens
 lib/                 External clients and helpers
@@ -96,7 +99,15 @@ A database trigger creates the matching profile row whenever an admin provisions
 update public.profiles set role = 'admin' where email = 'someone@school.edu';
 ```
 
-`app/(app)/index.tsx` renders a different dashboard component (`components/dashboard/{Admin,Teacher,Student}Dashboard.tsx`) based on `profile.role`. Building an in-app admin UI for creating accounts and assigning roles is the next phase, not implemented yet.
+`app/(app)/index.tsx` renders a different dashboard component (`components/dashboard/{Admin,Teacher,Student}Dashboard.tsx`) based on `profile.role`. Teacher and student roles also get their own bottom tabs — Classes/Students/Assignments for teachers, Subjects/Assignments for students (`app/(app)/classes.tsx`, `students.tsx`, `subjects.tsx`, `assignments.tsx`); the tab layout (`app/(app)/_layout.tsx`) hides tabs that don't apply to the signed-in role via expo-router's `href: null` option.
+
+Admin account management (create teacher/student accounts, restrict/unrestrict, reset passwords) is **web-only for now** — see `web/README.md`'s Roles section. Mobile shows the admin dashboard but no admin-specific tabs yet, since those actions need a server holding Supabase's service-role key, which only the web app has.
+
+## Classes, roster, and assignments
+
+Real data now, backed by `supabase/migrations/0003_schools_classes.sql` (`schools`, `classes`, `enrollments`, `assignments`, plus RLS and helper functions like `is_teacher()`/`current_school_id()` mirroring `is_admin()` from `0001_roles.sql`). A teacher creates classes (Classes tab), manages each class's roster from `app/class/[id].tsx` (add/remove from existing student accounts in the same school), and creates assignments (title, description, assessment type, difficulty, due date) either from that screen or the Assignments tab. Students see their real enrolled classes (Subjects) and assignments, scoped automatically by RLS.
+
+**Deliberately out of scope this pass**: individual/group assignment targeting (assignments always go to the whole class), and any submission/grading subsystem — assignments are records with a due date, not yet tracked per student. Exams, Curriculum, Performance, and Learning Videos remain placeholder screens on web only (see `web/README.md`); Timetable is real now (web only) — see that README's Timetable section. Mobile doesn't have tabs for any of these; its dashboards and Classes list do share the same banner/colorful-tile treatment as web now (`components/dashboard/DashboardBanner.tsx`, `TILE_PALETTE`).
 
 ### Seeding accounts
 

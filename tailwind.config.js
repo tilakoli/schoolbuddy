@@ -7,49 +7,53 @@ module.exports = {
       colors: {
         // --- Core Brand ---
         primary: {
-          DEFAULT: '#2563EB',
-          light: '#EFF6FF',
-          border: '#93C5FD',
-          muted: '#BFDBFE',
-          foreground: '#FFFFFF',
+          DEFAULT: '#343996',
+          light: '#E8ECFE',
+          border: '#B4BCDF',
+          muted: '#C8D4FF',
+          foreground: '#FBFCFD',
+        },
+        accent: {
+          DEFAULT: '#E97300',
+          foreground: '#FFFAF5',
         },
 
         // --- Backgrounds ---
         background: {
-          DEFAULT: '#F8FAFC',
-          overlay: 'rgba(248,250,252,0.95)',
-          blur: 'rgba(248,250,252,0.8)',
+          DEFAULT: '#F9FAFB',
+          overlay: 'rgba(249,250,251,0.95)',
+          blur: 'rgba(249,250,251,0.8)',
         },
 
         // --- Surfaces ---
         card: '#FFFFFF',
 
         // --- Foreground / Text ---
-        foreground: '#0F172A',
-        'muted-foreground': '#64748B',
+        foreground: '#15181F',
+        'muted-foreground': '#656970',
 
         // --- Secondary ---
-        secondary: '#E2E8F0',
+        secondary: '#EEF0F3',
 
         // --- Borders ---
         border: {
-          DEFAULT: '#CBD5E1',
-          muted: 'rgba(203,213,225,0.6)',
+          DEFAULT: '#E3E5E7',
+          muted: 'rgba(227,229,231,0.6)',
         },
 
         // --- Status ---
-        success: '#22C55E',
-        warning: '#F59E0B',
-        danger: '#EF4444',
-        info: '#38BDF8',
+        success: '#2C965D',
+        warning: '#DA950B',
+        danger: '#CC3336',
+        info: '#2A94C7',
 
       },
 
       borderRadius: {
-        sm: '8px',
-        DEFAULT: '12px',
-        lg: '16px',
-        xl: '24px',
+        sm: '6px',
+        DEFAULT: '10px',
+        lg: '14px',
+        xl: '20px',
         full: '9999px',
       },
 

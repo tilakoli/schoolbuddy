@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
-import { router } from 'expo-router';
-import { BorderRadius, Colors, FontSize, Shadow, Spacing } from '@/constants/theme';
+import { ActivityIndicator, Text, View } from 'react-native';
+import DashboardBanner, { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
+import { BorderRadius, Colors, FontSize, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
 interface Counts {
@@ -44,62 +44,46 @@ export default function AdminDashboard({ name }: { name: string }) {
     },
   ];
 
+  const total = counts ? counts.admins + counts.teachers + counts.students : null;
+
   return (
     <>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>Welcome back</Text>
-          <Text style={{ color: Colors.foreground, fontSize: 28, fontWeight: '700', marginTop: 2 }}>
-            {name}
-          </Text>
-        </View>
-        <TouchableOpacity
-          onPress={() => router.push('/settings')}
-          accessibilityRole="button"
-          accessibilityLabel="Open settings"
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: BorderRadius.full,
-            backgroundColor: Colors.secondary,
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Text style={{ fontSize: 20 }}>⚙</Text>
-        </TouchableOpacity>
-      </View>
+      <DashboardBanner
+        eyebrow="Welcome back"
+        name={name}
+        summary={total !== null ? `Overseeing ${total} accounts across the school.` : undefined}
+      />
 
       <View
         style={{
           flexDirection: 'row',
           flexWrap: 'wrap',
           gap: Spacing.sm,
-          marginTop: Spacing.xl,
+          marginTop: Spacing.lg,
         }}
       >
-        {stats.map((stat) => (
-          <View
-            key={stat.label}
-            style={{
-              flexBasis: '47%',
-              flexGrow: 1,
-              backgroundColor: Colors.card,
-              borderColor: Colors.border,
-              borderWidth: 1,
-              borderRadius: BorderRadius.lg,
-              padding: Spacing.md,
-              ...Shadow.card,
-            }}
-          >
-            <Text style={{ color: Colors.foreground, fontSize: FontSize['2xl'], fontWeight: '700' }}>
-              {stat.value}
-            </Text>
-            <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 2 }}>
-              {stat.label}
-            </Text>
-          </View>
-        ))}
+        {stats.map((stat, i) => {
+          const tile = TILE_PALETTE[i % TILE_PALETTE.length];
+          return (
+            <View
+              key={stat.label}
+              style={{
+                flexBasis: '47%',
+                flexGrow: 1,
+                backgroundColor: tile.bg,
+                borderRadius: BorderRadius.lg,
+                padding: Spacing.md,
+              }}
+            >
+              <Text style={{ color: tile.text, fontSize: FontSize['2xl'], fontWeight: '700' }}>
+                {stat.value}
+              </Text>
+              <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 2 }}>
+                {stat.label}
+              </Text>
+            </View>
+          );
+        })}
       </View>
 
       <Text style={{ color: Colors.foreground, fontSize: FontSize.lg, fontWeight: '700', marginTop: Spacing.xl, marginBottom: Spacing.md }}>
@@ -119,7 +103,7 @@ export default function AdminDashboard({ name }: { name: string }) {
           Create and manage teacher &amp; student accounts
         </Text>
         <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 4 }}>
-          Coming soon. For now, provision accounts from the Supabase dashboard.
+          Manage teacher and student accounts from the web app.
         </Text>
       </View>
 

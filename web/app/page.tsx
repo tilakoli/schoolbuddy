@@ -44,7 +44,7 @@ export default async function HomePage() {
 
         <section className="mx-auto grid max-w-5xl gap-4 px-6 pb-20 sm:grid-cols-3">
           {FEATURES.map(([title, description]) => (
-            <div key={title} className="rounded-2xl border border-border bg-card p-6">
+            <div key={title} className="rounded-2xl border border-border bg-card shadow-sm p-6">
               <h2 className="text-base font-semibold text-foreground">{title}</h2>
               <p className="mt-2 text-sm text-muted-foreground">{description}</p>
             </div>

@@ -1,84 +1,136 @@
 import Link from 'next/link';
+import DashboardBanner, { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
+import { createClient } from '@/lib/supabase/server';
 
-const STATS = [
-  { label: 'Classes', value: '4' },
-  { label: 'Students', value: '96' },
-  { label: 'Assignments due', value: '3' },
-  { label: 'Ungraded', value: '12' },
-] as const;
+function formatDue(dueAt: string | null): { label: string; status: 'danger' | 'warning' | 'info' } {
+  if (!dueAt) return { label: 'No due date', status: 'info' };
+  const due = new Date(dueAt);
+  const now = new Date();
+  const diffDays = (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+  if (diffDays < 0) return { label: 'Overdue', status: 'danger' };
+  if (diffDays < 1) return { label: 'Due today', status: 'warning' };
+  if (diffDays < 2) return { label: 'Due tomorrow', status: 'warning' };
+  return { label: due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), status: 'info' };
+}
 
-const CLASSES = [
-  { name: 'Algebra I', period: 'Period 2 · 9:10 AM', students: 28 },
-  { name: 'Algebra I', period: 'Period 4 · 11:45 AM', students: 26 },
-  { name: 'Geometry Honors', period: 'Period 5 · 1:00 PM', students: 22 },
-  { name: 'AP Calculus', period: 'Period 6 · 2:05 PM', students: 20 },
-] as const;
+const STATUS_COLOR = { danger: 'bg-danger', warning: 'bg-warning', info: 'bg-info' } as const;
 
-const ASSIGNMENTS = [
-  { title: 'Chapter 4 Quiz', className: 'Algebra I', due: 'Due tomorrow', status: 'warning' },
-  { title: 'Proof Practice Set', className: 'Geometry Honors', due: 'Due Friday', status: 'info' },
-  { title: 'Related Rates Homework', className: 'AP Calculus', due: 'Due Monday', status: 'info' },
-] as const;
+export default async function TeacherDashboard({ name, userId }: { name: string; userId: string }) {
+  const supabase = await createClient();
 
-const STATUS_COLOR: Record<(typeof ASSIGNMENTS)[number]['status'], string> = {
-  warning: 'bg-warning',
-  info: 'bg-info',
-};
+  const { data: classes } = supabase
+    ? await supabase.from('classes').select('id, name, subject, period, enrollments(count)').eq('teacher_id', userId).order('created_at')
+    : { data: null };
 
-export default function TeacherDashboard({ name }: { name: string }) {
+  const classIds = (classes ?? []).map((c) => c.id);
+  const studentCount = (classes ?? []).reduce((sum, c) => sum + (c.enrollments?.[0]?.count ?? 0), 0);
+
+  interface AssignmentRow {
+    id: string;
+    title: string;
+    due_at: string | null;
+    classes: { name: string } | null;
+  }
+  const { data: assignmentRows } = supabase && classIds.length
+    ? await supabase
+        .from('assignments')
+        .select('id, title, due_at, classes(name)')
+        .in('class_id', classIds)
+        .order('due_at', { ascending: true, nullsFirst: false })
+    : { data: [] };
+  const assignments = (assignmentRows ?? []) as unknown as AssignmentRow[];
+
+  const now = new Date();
+  const dueSoonCount = (assignments ?? []).filter((a) => {
+    if (!a.due_at) return false;
+    const diffDays = (new Date(a.due_at).getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays < 7;
+  }).length;
+
+  const stats = [
+    { label: 'Classes', value: String(classes?.length ?? 0) },
+    { label: 'Students', value: String(studentCount) },
+    { label: 'Due this week', value: String(dueSoonCount) },
+    { label: 'Total assignments', value: String(assignments?.length ?? 0) },
+  ];
+
+  const upcoming = (assignments ?? []).slice(0, 4);
+  const classCount = classes?.length ?? 0;
+
   return (
     <>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Welcome back</p>
-          <h1 className="mt-1 text-2xl font-bold text-foreground">{name}</h1>
-        </div>
-        <Link
-          href="/settings"
-          aria-label="Open settings"
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-secondary text-lg"
-        >
-          ⚙
-        </Link>
-      </div>
+      <DashboardBanner
+        eyebrow="Welcome back"
+        name={name}
+        summary={
+          classCount > 0
+            ? `Teaching ${studentCount} student${studentCount === 1 ? '' : 's'} across ${classCount} class${classCount === 1 ? '' : 'es'}.`
+            : 'Create your first class to get started.'
+        }
+        actions={
+          <>
+            <Link href="/classes" className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground">
+              + New class
+            </Link>
+            <Link href="/assignments" className="rounded-lg bg-white/15 px-4 py-2 text-sm font-semibold text-primary-foreground">
+              View assignments
+            </Link>
+          </>
+        }
+      />
 
-      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {STATS.map((stat) => (
-          <div key={stat.label} className="rounded-xl border border-border bg-card p-4">
-            <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
-          </div>
-        ))}
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {stats.map((stat, i) => {
+          const tile = TILE_PALETTE[i % TILE_PALETTE.length];
+          return (
+            <div key={stat.label} className={`rounded-xl ${tile.bg} p-4`}>
+              <p className={`text-2xl font-bold ${tile.text}`}>{stat.value}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
+            </div>
+          );
+        })}
       </div>
 
       <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">Your classes</h2>
       <div className="space-y-2">
-        {CLASSES.map((classItem) => (
-          <div
-            key={`${classItem.name}-${classItem.period}`}
-            className="flex items-center justify-between rounded-xl border border-border bg-card p-4"
-          >
-            <div>
-              <p className="font-semibold text-foreground">{classItem.name}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{classItem.period}</p>
+        {(classes ?? []).length === 0 && (
+          <p className="text-sm text-muted-foreground">No classes yet — create one from the Classes tab.</p>
+        )}
+        {(classes ?? []).map((classItem, i) => {
+          const tile = TILE_PALETTE[i % TILE_PALETTE.length];
+          return (
+            <div key={classItem.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card shadow-sm p-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${tile.bg} ${tile.text}`}>
+                  {classItem.name.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-foreground">{classItem.name}</p>
+                  <p className="mt-1 truncate text-sm text-muted-foreground">{[classItem.subject, classItem.period].filter(Boolean).join(' · ')}</p>
+                </div>
+              </div>
+              <p className="shrink-0 text-sm text-muted-foreground">{classItem.enrollments?.[0]?.count ?? 0} students</p>
             </div>
-            <p className="text-sm text-muted-foreground">{classItem.students} students</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">Upcoming assignments</h2>
       <div className="space-y-2">
-        {ASSIGNMENTS.map((assignment) => (
-          <div key={assignment.title} className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-            <span className={`h-2 w-2 rounded-full ${STATUS_COLOR[assignment.status]}`} />
-            <div className="flex-1">
-              <p className="font-semibold text-foreground">{assignment.title}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{assignment.className}</p>
+        {upcoming.length === 0 && <p className="text-sm text-muted-foreground">No assignments yet.</p>}
+        {upcoming.map((assignment) => {
+          const due = formatDue(assignment.due_at);
+          return (
+            <div key={assignment.id} className="flex items-center gap-3 rounded-xl border border-border bg-card shadow-sm p-4">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_COLOR[due.status]}`} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-foreground">{assignment.title}</p>
+                <p className="mt-1 truncate text-sm text-muted-foreground">{assignment.classes?.name}</p>
+              </div>
+              <p className="shrink-0 text-sm text-muted-foreground">{due.label}</p>
             </div>
-            <p className="text-sm text-muted-foreground">{assignment.due}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );

@@ -7,6 +7,7 @@ export interface Profile {
   email: string | null;
   full_name: string | null;
   role: Role;
+  restricted: boolean;
 }
 
 export async function fetchProfile(userId: string): Promise<Profile | null> {

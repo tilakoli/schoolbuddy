@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, TextInputProps } from 'react-native';
+import { Feather } from '@expo/vector-icons';
 import { Colors, FontFamily, FontSize, BorderRadius } from '@/constants/theme';
 
 type InputProps = TextInputProps & {
@@ -66,9 +67,7 @@ export default function Input({
             accessibilityRole="button"
             accessibilityLabel={hidden ? 'Show password' : 'Hide password'}
           >
-            <Text style={{ fontSize: 16, color: Colors.mutedForeground }}>
-              {hidden ? '👁' : '🙈'}
-            </Text>
+            <Feather name={hidden ? 'eye' : 'eye-off'} size={18} color={Colors.mutedForeground} />
           </TouchableOpacity>
         )}
 

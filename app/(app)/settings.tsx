@@ -1,4 +1,4 @@
-import { Alert, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import Button from '@/components/shared/Button';
 import Screen from '@/components/shared/Screen';
@@ -30,9 +30,6 @@ export default function SettingsScreen() {
 
   return (
     <Screen>
-      <TouchableOpacity onPress={() => router.back()} style={{ marginBottom: Spacing.lg }}>
-        <Text style={{ color: Colors.primary, fontSize: FontSize.md }}>← Back</Text>
-      </TouchableOpacity>
       <Text style={{ color: Colors.foreground, fontSize: 32, fontWeight: '700' }}>Settings</Text>
       <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.md, marginTop: 6 }}>
         Manage your account.

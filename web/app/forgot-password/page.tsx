@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
               placeholder="you@example.com"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+              className="mt-1 w-full rounded-lg border border-border bg-card shadow-sm px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
             />
             {error && <p className="mt-2 text-sm text-danger">{error}</p>}
           </div>

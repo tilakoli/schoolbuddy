@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import DashboardBanner, { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
 import { createClient } from '@/lib/supabase/server';
 
 export default async function AdminDashboard({ name }: { name: string }) {
@@ -18,35 +19,44 @@ export default async function AdminDashboard({ name }: { name: string }) {
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Welcome back</p>
-          <h1 className="mt-1 text-2xl font-bold text-foreground">{name}</h1>
-        </div>
-        <Link
-          href="/settings"
-          aria-label="Open settings"
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-secondary text-lg"
-        >
-          ⚙
-        </Link>
-      </div>
+      <DashboardBanner
+        eyebrow="Welcome back"
+        name={name}
+        summary={`Overseeing ${admins + teachers + students} accounts across the school.`}
+        actions={
+          <>
+            <Link href="/admin/teachers" className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground">
+              + New teacher
+            </Link>
+            <Link href="/admin/students" className="rounded-lg bg-white/15 px-4 py-2 text-sm font-semibold text-primary-foreground">
+              Manage students
+            </Link>
+          </>
+        }
+      />
 
-      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {stats.map((stat) => (
-          <div key={stat.label} className="rounded-xl border border-border bg-card p-4">
-            <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
-          </div>
-        ))}
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {stats.map((stat, i) => {
+          const tile = TILE_PALETTE[i % TILE_PALETTE.length];
+          return (
+            <div key={stat.label} className={`rounded-xl ${tile.bg} p-4`}>
+              <p className={`text-2xl font-bold ${tile.text}`}>{stat.value}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
+            </div>
+          );
+        })}
       </div>
 
       <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">User management</h2>
-      <div className="rounded-xl border border-border bg-card p-4 opacity-60">
-        <p className="font-semibold text-foreground">Create and manage teacher &amp; student accounts</p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Coming soon. For now, provision accounts from the Supabase dashboard.
-        </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Link href="/admin/teachers" className="rounded-xl border border-border bg-card shadow-sm p-4 hover:border-primary">
+          <p className="font-semibold text-foreground">Manage teachers</p>
+          <p className="mt-1 text-sm text-muted-foreground">Create, restrict, and reset passwords for teacher accounts.</p>
+        </Link>
+        <Link href="/admin/students" className="rounded-xl border border-border bg-card shadow-sm p-4 hover:border-primary">
+          <p className="font-semibold text-foreground">Manage students</p>
+          <p className="mt-1 text-sm text-muted-foreground">Create, restrict, and reset passwords for student accounts.</p>
+        </Link>
       </div>
     </>
   );

@@ -20,9 +20,9 @@ declare
   v_role text;
   v_full_name text;
   v_users jsonb := '[
-    {"email": "admin@school.edu",   "password": "ChangeMe123!", "role": "admin",   "full_name": "Admin Name"},
-    {"email": "teacher@school.edu", "password": "ChangeMe123!", "role": "teacher", "full_name": "Teacher Name"},
-    {"email": "student@school.edu", "password": "ChangeMe123!", "role": "student", "full_name": "Student Name"}
+    {"email": "admin.test@schoolbuddy.dev",   "password": "TestPass123!", "role": "admin",   "full_name": "Test Admin"},
+    {"email": "teacher.test@schoolbuddy.dev", "password": "TestPass123!", "role": "teacher", "full_name": "Test Teacher"},
+    {"email": "student.test@schoolbuddy.dev", "password": "TestPass123!", "role": "student", "full_name": "Test Student"}
   ]'::jsonb;
   v_user jsonb;
 begin

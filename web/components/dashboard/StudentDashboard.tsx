@@ -1,81 +1,126 @@
 import Link from 'next/link';
+import DashboardBanner, { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
+import { createClient } from '@/lib/supabase/server';
 
-const STATS = [
-  { label: 'Enrolled classes', value: '6' },
-  { label: 'Assignments due', value: '3' },
-  { label: 'Average grade', value: '91%' },
-  { label: 'Announcements', value: '2' },
-] as const;
+function formatDue(dueAt: string | null): { label: string; status: 'danger' | 'warning' | 'info' } {
+  if (!dueAt) return { label: 'No due date', status: 'info' };
+  const due = new Date(dueAt);
+  const now = new Date();
+  const diffDays = (due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+  if (diffDays < 0) return { label: 'Overdue', status: 'danger' };
+  if (diffDays < 1) return { label: 'Due today', status: 'warning' };
+  if (diffDays < 2) return { label: 'Due tomorrow', status: 'warning' };
+  return { label: due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }), status: 'info' };
+}
 
-const CLASSES = [
-  { name: 'Algebra I', teacher: 'Ms. Patel · Period 2', room: 'Room 108' },
-  { name: 'World History', teacher: 'Mr. Nguyen · Period 3', room: 'Room 214' },
-  { name: 'Biology', teacher: 'Dr. Alvarez · Period 5', room: 'Lab 3' },
-  { name: 'English Literature', teacher: 'Ms. Foster · Period 6', room: 'Room 119' },
-] as const;
+const STATUS_COLOR = { danger: 'bg-danger', warning: 'bg-warning', info: 'bg-info' } as const;
 
-const ASSIGNMENTS = [
-  { title: 'Chapter 4 Quiz', className: 'Algebra I', due: 'Due tomorrow', status: 'warning' },
-  { title: 'Reading Response', className: 'English Literature', due: 'Due Friday', status: 'info' },
-  { title: 'Lab Report', className: 'Biology', due: 'Due Monday', status: 'info' },
-] as const;
+export default async function StudentDashboard({ name }: { name: string }) {
+  const supabase = await createClient();
 
-const STATUS_COLOR: Record<(typeof ASSIGNMENTS)[number]['status'], string> = {
-  warning: 'bg-warning',
-  info: 'bg-info',
-};
+  // RLS already scopes both queries to this student's own enrolled classes.
+  const { data: classes } = supabase
+    ? await supabase.from('classes').select('id, name, subject, period, room').order('name')
+    : { data: null };
 
-export default function StudentDashboard({ name }: { name: string }) {
+  interface AssignmentRow {
+    id: string;
+    title: string;
+    due_at: string | null;
+    classes: { name: string } | null;
+  }
+  const { data: assignmentRows } = supabase
+    ? await supabase.from('assignments').select('id, title, due_at, classes(name)').order('due_at', { ascending: true, nullsFirst: false })
+    : { data: [] };
+  const assignments = (assignmentRows ?? []) as unknown as AssignmentRow[];
+
+  const now = new Date();
+  const dueSoonCount = (assignments ?? []).filter((a) => {
+    if (!a.due_at) return false;
+    const diffDays = (new Date(a.due_at).getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+    return diffDays >= 0 && diffDays < 7;
+  }).length;
+  const overdueCount = (assignments ?? []).filter((a) => a.due_at && new Date(a.due_at).getTime() < now.getTime()).length;
+
+  const stats = [
+    { label: 'Enrolled classes', value: String(classes?.length ?? 0) },
+    { label: 'Due this week', value: String(dueSoonCount) },
+    { label: 'Overdue', value: String(overdueCount) },
+    { label: 'Total assignments', value: String(assignments?.length ?? 0) },
+  ];
+
+  const upcoming = (assignments ?? []).slice(0, 4);
+  const classCount = classes?.length ?? 0;
+
   return (
     <>
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">Welcome back</p>
-          <h1 className="mt-1 text-2xl font-bold text-foreground">{name}</h1>
-        </div>
-        <Link
-          href="/settings"
-          aria-label="Open settings"
-          className="flex h-11 w-11 items-center justify-center rounded-full bg-secondary text-lg"
-        >
-          ⚙
-        </Link>
-      </div>
+      <DashboardBanner
+        eyebrow="Welcome back"
+        name={name}
+        summary={
+          classCount > 0
+            ? `Enrolled in ${classCount} class${classCount === 1 ? '' : 'es'} this term.`
+            : 'Your enrolled classes will show up here.'
+        }
+        actions={
+          <Link href="/assignments" className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground">
+            View assignments
+          </Link>
+        }
+      />
 
-      <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {STATS.map((stat) => (
-          <div key={stat.label} className="rounded-xl border border-border bg-card p-4">
-            <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
-          </div>
-        ))}
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {stats.map((stat, i) => {
+          const tile = TILE_PALETTE[i % TILE_PALETTE.length];
+          return (
+            <div key={stat.label} className={`rounded-xl ${tile.bg} p-4`}>
+              <p className={`text-2xl font-bold ${tile.text}`}>{stat.value}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
+            </div>
+          );
+        })}
       </div>
 
       <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">My classes</h2>
       <div className="space-y-2">
-        {CLASSES.map((classItem) => (
-          <div key={classItem.name} className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-            <div>
-              <p className="font-semibold text-foreground">{classItem.name}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{classItem.teacher}</p>
+        {(classes ?? []).length === 0 && (
+          <p className="text-sm text-muted-foreground">You&apos;re not enrolled in any classes yet.</p>
+        )}
+        {(classes ?? []).map((classItem, i) => {
+          const tile = TILE_PALETTE[i % TILE_PALETTE.length];
+          return (
+            <div key={classItem.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card shadow-sm p-4">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${tile.bg} ${tile.text}`}>
+                  {classItem.name.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-foreground">{classItem.name}</p>
+                  <p className="mt-1 truncate text-sm text-muted-foreground">{[classItem.subject, classItem.period].filter(Boolean).join(' · ')}</p>
+                </div>
+              </div>
+              <p className="shrink-0 text-sm text-muted-foreground">{classItem.room}</p>
             </div>
-            <p className="text-sm text-muted-foreground">{classItem.room}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">Upcoming assignments</h2>
       <div className="space-y-2">
-        {ASSIGNMENTS.map((assignment) => (
-          <div key={assignment.title} className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-            <span className={`h-2 w-2 rounded-full ${STATUS_COLOR[assignment.status]}`} />
-            <div className="flex-1">
-              <p className="font-semibold text-foreground">{assignment.title}</p>
-              <p className="mt-1 text-sm text-muted-foreground">{assignment.className}</p>
+        {upcoming.length === 0 && <p className="text-sm text-muted-foreground">No assignments yet.</p>}
+        {upcoming.map((assignment) => {
+          const due = formatDue(assignment.due_at);
+          return (
+            <div key={assignment.id} className="flex items-center gap-3 rounded-xl border border-border bg-card shadow-sm p-4">
+              <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_COLOR[due.status]}`} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold text-foreground">{assignment.title}</p>
+                <p className="mt-1 truncate text-sm text-muted-foreground">{assignment.classes?.name}</p>
+              </div>
+              <p className="shrink-0 text-sm text-muted-foreground">{due.label}</p>
             </div>
-            <p className="text-sm text-muted-foreground">{assignment.due}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );

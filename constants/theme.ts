@@ -2,40 +2,46 @@
  * theme.ts
  * Central source of truth for design tokens used outside of Tailwind/NativeWind.
  * Use for StyleSheet, Animated values, or third-party components.
+ *
+ * Deep/refined SaaS direction (Linear/Notion/Vercel-adjacent) — values
+ * converted precisely from the approved oklch mockup palette so mobile and
+ * web match exactly. See web/app/globals.css for the web token side.
  */
 
 export const Colors = {
   // --- Core Brand ---
-  primary: '#2563EB',
-  primaryLight: '#EFF6FF',
-  primaryBorder: '#93C5FD',
-  primaryMuted: '#BFDBFE',
-  primaryForeground: '#FFFFFF',
+  primary: '#343996',
+  primaryLight: '#E8ECFE',
+  primaryBorder: '#B4BCDF',
+  primaryMuted: '#C8D4FF',
+  primaryForeground: '#FBFCFD',
+  accent: '#E97300',
+  accentForeground: '#FFFAF5',
 
   // --- Backgrounds ---
-  background: '#F8FAFC',
-  backgroundOverlay: 'rgba(248,250,252,0.95)',
-  backgroundBlur: 'rgba(248,250,252,0.8)',
+  background: '#F9FAFB',
+  backgroundOverlay: 'rgba(249,250,251,0.95)',
+  backgroundBlur: 'rgba(249,250,251,0.8)',
 
   // --- Surfaces ---
   card: '#FFFFFF',
 
   // --- Foreground / Text ---
-  foreground: '#0F172A',
-  mutedForeground: '#64748B',
+  foreground: '#15181F',
+  mutedForeground: '#656970',
 
   // --- Secondary ---
-  secondary: '#E2E8F0',
+  secondary: '#EEF0F3',
 
   // --- Borders ---
-  border: '#CBD5E1',
-  borderMuted: 'rgba(203,213,225,0.6)',
+  border: '#E3E5E7',
+  borderMuted: 'rgba(227,229,231,0.6)',
 
   // --- Status ---
-  success: '#22C55E',
-  warning: '#F59E0B',
-  danger: '#EF4444',
-  info: '#38BDF8',
+  success: '#2C965D',
+  warning: '#DA950B',
+  danger: '#CC3336',
+  info: '#2A94C7',
 
 } as const;
 
@@ -67,33 +73,33 @@ export const Spacing = {
 } as const;
 
 export const BorderRadius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 24,
+  sm: 6,
+  md: 10,
+  lg: 14,
+  xl: 20,
   full: 9999,
 } as const;
 
 export const Shadow = {
   card: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowColor: '#15181F',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
   },
   cta: {
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 10 },
+    shadowColor: '#343996',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
-    shadowRadius: 40,
-    elevation: 8,
+    shadowRadius: 10,
+    elevation: 6,
   },
   modal: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowColor: '#15181F',
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.2,
+    shadowRadius: 30,
+    elevation: 12,
   },
 } as const;

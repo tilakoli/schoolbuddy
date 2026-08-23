@@ -1,7 +1,7 @@
 import { TouchableOpacity, Text, ActivityIndicator, type StyleProp, type ViewStyle } from 'react-native';
 import { Colors, FontFamily, FontSize, BorderRadius } from '@/constants/theme';
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline';
+type ButtonVariant = 'primary' | 'accent' | 'secondary' | 'outline';
 
 type ButtonProps = {
   label: string;
@@ -18,6 +18,11 @@ const styles: Record<ButtonVariant, { bg: string; border: string; text: string }
     bg: Colors.primary,
     border: Colors.primary,
     text: Colors.primaryForeground,
+  },
+  accent: {
+    bg: Colors.accent,
+    border: Colors.accent,
+    text: Colors.accentForeground,
   },
   secondary: {
     bg: Colors.secondary,

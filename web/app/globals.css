@@ -1,19 +1,29 @@
 @import "tailwindcss";
 
+/*
+ * Deep/refined SaaS direction (Linear/Notion/Vercel-adjacent), approved via
+ * the design mockup published this session. Values match the mockup exactly
+ * (oklch), so this cascades to every screen automatically since none of them
+ * hardcode colors — they all reference these tokens via Tailwind classes.
+ */
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --card: #ffffff;
-  --border: #cbd5e1;
-  --muted-foreground: #64748b;
-  --secondary: #e2e8f0;
-  --primary: #2563eb;
-  --primary-foreground: #ffffff;
-  --primary-light: #eff6ff;
-  --success: #22c55e;
-  --warning: #f59e0b;
-  --danger: #ef4444;
-  --info: #38bdf8;
+  --background: oklch(98.4% 0.002 260);
+  --foreground: oklch(21% 0.015 265);
+  --card: oklch(100% 0 0);
+  --border: oklch(92% 0.004 260);
+  --border-soft: oklch(94.5% 0.003 260);
+  --muted-foreground: oklch(52% 0.012 265);
+  --muted-foreground-2: oklch(64% 0.01 265);
+  --secondary: oklch(95.5% 0.004 260);
+  --primary: oklch(40% 0.15 275);
+  --primary-foreground: oklch(99% 0.002 260);
+  --primary-light: oklch(94.5% 0.025 275);
+  --accent: oklch(68% 0.18 55);
+  --accent-foreground: oklch(99% 0.01 60);
+  --success: oklch(60% 0.13 155);
+  --warning: oklch(72% 0.15 75);
+  --danger: oklch(56% 0.19 25);
+  --info: oklch(63% 0.12 235);
 }
 
 @theme inline {
@@ -21,17 +31,30 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-border: var(--border);
+  --color-border-soft: var(--border-soft);
   --color-muted-foreground: var(--muted-foreground);
+  --color-muted-foreground-2: var(--muted-foreground-2);
   --color-secondary: var(--secondary);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-light: var(--primary-light);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
   --color-info: var(--info);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+
+  --shadow-sm: 0 1px 2px oklch(21% 0.015 265 / 0.05);
+  --shadow-md: 0 1px 2px oklch(21% 0.015 265 / 0.04), 0 8px 20px -6px oklch(21% 0.015 265 / 0.08);
+  --shadow-lg: 0 24px 60px -12px oklch(21% 0.015 265 / 0.25), 0 4px 16px -4px oklch(21% 0.015 265 / 0.12);
 }
 
 body {
