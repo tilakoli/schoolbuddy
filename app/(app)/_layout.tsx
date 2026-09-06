@@ -1,5 +1,6 @@
 import { Redirect, Tabs } from 'expo-router';
 import { ActivityIndicator, Text, View } from 'react-native';
+import ChatWidget from '@/components/ChatWidget';
 import { Colors } from '@/constants/theme';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -23,6 +24,7 @@ export default function ProtectedLayout() {
   const role = profile?.role;
 
   return (
+    <View style={{ flex: 1 }}>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -71,5 +73,7 @@ export default function ProtectedLayout() {
         options={{ title: 'Settings', tabBarIcon: ({ color }) => <TabIcon glyph="⚙" color={color} /> }}
       />
     </Tabs>
+    <ChatWidget />
+    </View>
   );
 }

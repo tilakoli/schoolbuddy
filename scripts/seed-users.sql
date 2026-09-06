@@ -28,7 +28,7 @@ declare
 begin
   for v_user in select * from jsonb_array_elements(v_users)
   loop
-    v_id := gen_random_uuid();
+    v_id := gen_random_uuid(); 
     v_email := v_user ->> 'email';
     v_password := v_user ->> 'password';
     v_role := v_user ->> 'role';

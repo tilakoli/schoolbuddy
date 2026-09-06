@@ -32,6 +32,13 @@
     },
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "23d56f6f-e4ef-4064-977d-b74fa8a56e99"
+      }
+    },
+    "owner": "kagami14"
   }
 }

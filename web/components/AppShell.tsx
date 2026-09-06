@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import ChatWidget from '@/components/ChatWidget';
 import Sidebar from '@/components/Sidebar';
 import { MenuIcon, XIcon } from '@/components/icons';
 import { APP_CONFIG } from '@/constants/config';
@@ -44,6 +45,7 @@ export default function AppShell({ role, children }: { role: Role; children: Rea
       </div>
 
       <div className="min-w-0 flex-1">{children}</div>
+      <ChatWidget />
     </div>
   );
 }

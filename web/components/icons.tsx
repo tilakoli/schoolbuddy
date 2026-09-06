@@ -125,3 +125,19 @@ export function XIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function ChatIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v9a2.5 2.5 0 0 1-2.5 2.5H9l-4.5 4v-4H6.5A2.5 2.5 0 0 1 4 14.5z" />
+    </svg>
+  );
+}
+
+export function SendIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 12l16-7-7 16-2.5-6.5L4 12z" />
+    </svg>
+  );
+}
