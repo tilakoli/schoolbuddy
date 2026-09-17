@@ -9,7 +9,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
-      {profile?.role === 'admin' && <AdminDashboard name={name} />}
+      {(profile?.role === 'admin' || profile?.role === 'vice_principal') && <AdminDashboard name={name} />}
       {profile?.role === 'teacher' && <TeacherDashboard name={name} userId={user!.id} />}
       {(!profile || profile.role === 'student') && <StudentDashboard name={name} />}
     </main>

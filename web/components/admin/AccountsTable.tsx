@@ -22,9 +22,11 @@ async function postJson(url: string, body: unknown) {
 export default function AccountsTable({
   role,
   initialAccounts,
+  schoolId,
 }: {
   role: Extract<Role, 'teacher' | 'student'>;
   initialAccounts: Profile[];
+  schoolId: string;
 }) {
   const [accounts, setAccounts] = useState(initialAccounts);
   const [showCreate, setShowCreate] = useState(false);
@@ -52,6 +54,7 @@ export default function AccountsTable({
       {showCreate && (
         <CreateForm
           role={role}
+          schoolId={schoolId}
           onCreated={(account) => {
             setAccounts((prev) => [account, ...prev]);
             setShowCreate(false);
@@ -123,14 +126,17 @@ export default function AccountsTable({
 
 function CreateForm({
   role,
+  schoolId,
   onCreated,
 }: {
   role: Extract<Role, 'teacher' | 'student'>;
+  schoolId: string;
   onCreated: (account: Profile) => void;
 }) {
   const [email, setEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
+  const [subjectName, setSubjectName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
 
@@ -139,16 +145,23 @@ function CreateForm({
     setLoading(true);
     setError(undefined);
     try {
-      const { id } = await postJson('/api/admin/create-user', {
+      const payload: Record<string, unknown> = {
         email: email.trim(),
         password,
         full_name: fullName.trim(),
         role,
-      });
-      onCreated({ id, email: email.trim(), full_name: fullName.trim(), role, restricted: false });
+      };
+      if (role === 'teacher' && subjectName.trim()) payload.subjectName = subjectName.trim();
+
+      const result = await postJson('/api/admin/create-user', payload);
+      onCreated({ id: result.id, email: email.trim(), full_name: fullName.trim(), role, restricted: false, school_id: schoolId });
+      if (result.subjectWarning) {
+        setError(`Account created, but couldn't set up their subject: ${result.subjectWarning}`);
+      }
       setEmail('');
       setFullName('');
       setPassword('');
+      setSubjectName('');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Something went wrong.');
     } finally {
@@ -181,6 +194,15 @@ function CreateForm({
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
         />
       </div>
+      {role === 'teacher' && (
+        <input
+          type="text"
+          placeholder="Subject they teach (optional, e.g. Maths)"
+          value={subjectName}
+          onChange={(event) => setSubjectName(event.target.value)}
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+        />
+      )}
       {error && <p className="text-sm text-danger">{error}</p>}
       <button
         type="submit"

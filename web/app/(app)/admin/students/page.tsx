@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 
 export default async function AdminStudentsPage() {
   const { profile } = await getUserAndProfile();
-  if (profile?.role !== 'admin') redirect('/dashboard');
+  if (profile?.role !== 'admin' && profile?.role !== 'vice_principal') redirect('/dashboard');
 
   const supabase = await createClient();
   const { data } = supabase
@@ -14,7 +14,7 @@ export default async function AdminStudentsPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
-      <AccountsTable role="student" initialAccounts={(data as Profile[]) ?? []} />
+      <AccountsTable role="student" initialAccounts={(data as Profile[]) ?? []} schoolId={profile.school_id} />
     </main>
   );
 }

@@ -3,21 +3,16 @@ import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'reac
 import { router, useLocalSearchParams } from 'expo-router';
 import Button from '@/components/shared/Button';
 import Screen from '@/components/shared/Screen';
-import { BorderRadius, Colors, FontSize, Spacing } from '@/constants/theme';
+import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
 interface ClassRow {
   id: string;
-  name: string;
-  subject: string | null;
+  class_group_id: string;
   period: string | null;
   room: string | null;
-}
-
-interface StudentOption {
-  id: string;
-  full_name: string | null;
-  email: string | null;
+  subjects: { name: string } | null;
+  class_groups: { name: string } | null;
 }
 
 interface AssignmentRow {
@@ -29,17 +24,21 @@ interface AssignmentRow {
   due_at: string | null;
 }
 
+interface RosterStudent {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+}
+
 const ASSESSMENT_TYPES = ['homework', 'test', 'discussion', 'revision'] as const;
 const DIFFICULTIES = ['easy', 'medium', 'expert'] as const;
 
-export default function ClassDetailScreen() {
+export default function SubjectOfferingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [classRow, setClassRow] = useState<ClassRow | null>(null);
-  const [roster, setRoster] = useState<StudentOption[]>([]);
-  const [allStudents, setAllStudents] = useState<StudentOption[]>([]);
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
+  const [roster, setRoster] = useState<RosterStudent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
   const [showAssignmentForm, setShowAssignmentForm] = useState(false);
 
   useEffect(() => {
@@ -47,17 +46,20 @@ export default function ClassDetailScreen() {
     let cancelled = false;
 
     (async () => {
-      const [{ data: cls }, { data: enrollments }, { data: students }, { data: assignmentRows }] = await Promise.all([
-        supabase.from('classes').select('*').eq('id', id).single(),
-        supabase.from('enrollments').select('profiles(id, full_name, email)').eq('class_id', id),
-        supabase.from('profiles').select('id, full_name, email').eq('role', 'student').order('full_name'),
+      const [{ data: cls }, { data: assignmentRows }] = await Promise.all([
+        supabase.from('classes').select('*, subjects(name), class_groups(name)').eq('id', id).single(),
         supabase.from('assignments').select('*').eq('class_id', id).order('due_at', { ascending: true, nullsFirst: false }),
       ]);
       if (cancelled) return;
-      setClassRow(cls as ClassRow | null);
-      setRoster(((enrollments ?? []) as unknown as { profiles: StudentOption }[]).map((r) => r.profiles).filter(Boolean));
-      setAllStudents((students as StudentOption[]) ?? []);
+      setClassRow(cls as unknown as ClassRow | null);
       setAssignments((assignmentRows as AssignmentRow[]) ?? []);
+
+      const groupId = (cls as unknown as ClassRow | null)?.class_group_id;
+      if (groupId) {
+        const { data: enrollmentRows } = await supabase.from('enrollments').select('profiles(id, full_name, email)').eq('class_group_id', groupId);
+        if (cancelled) return;
+        setRoster(((enrollmentRows ?? []) as unknown as { profiles: RosterStudent }[]).map((r) => r.profiles).filter(Boolean));
+      }
       setLoading(false);
     })();
 
@@ -65,18 +67,6 @@ export default function ClassDetailScreen() {
       cancelled = true;
     };
   }, [id]);
-
-  const addStudent = async (student: StudentOption) => {
-    if (!supabase || !id) return;
-    const { error } = await supabase.from('enrollments').insert({ class_id: id, student_id: student.id });
-    if (!error) setRoster((prev) => [...prev, student]);
-  };
-
-  const removeStudent = async (studentId: string) => {
-    if (!supabase || !id) return;
-    const { error } = await supabase.from('enrollments').delete().eq('class_id', id).eq('student_id', studentId);
-    if (!error) setRoster((prev) => prev.filter((s) => s.id !== studentId));
-  };
 
   if (loading) {
     return (
@@ -88,40 +78,29 @@ export default function ClassDetailScreen() {
     );
   }
 
-  const rosterIds = new Set(roster.map((s) => s.id));
-  const available = allStudents.filter(
-    (s) =>
-      !rosterIds.has(s.id) &&
-      (!search ||
-        s.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-        s.email?.toLowerCase().includes(search.toLowerCase()))
-  );
-
   return (
     <Screen scroll>
       <TouchableOpacity onPress={() => router.back()}>
         <Text style={{ color: Colors.primary, fontSize: FontSize.md }}>← Classes</Text>
       </TouchableOpacity>
-      <Text style={{ color: Colors.foreground, fontSize: 24, fontWeight: '700', marginTop: Spacing.md }}>
-        {classRow?.name}
+      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: 24, marginTop: Spacing.md }}>
+        {classRow?.subjects?.name ?? 'Subject'}
       </Text>
       <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 4 }}>
-        {[classRow?.subject, classRow?.period, classRow?.room].filter(Boolean).join(' · ') || 'No details yet'}
+        {[classRow?.class_groups?.name, classRow?.period, classRow?.room].filter(Boolean).join(' · ') || 'No details yet'}
       </Text>
 
-      <Text style={{ color: Colors.foreground, fontSize: FontSize.lg, fontWeight: '700', marginTop: Spacing.xl, marginBottom: Spacing.md }}>
-        Roster
+      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg, marginTop: Spacing.xl, marginBottom: Spacing.md }}>
+        Students
       </Text>
-      {roster.length === 0 && (
-        <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>No students enrolled yet.</Text>
-      )}
+      <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.xs, marginBottom: Spacing.md }}>
+        The class roster is managed by admin — you can see who's enrolled here.
+      </Text>
+      {roster.length === 0 && <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>No students enrolled yet.</Text>}
       {roster.map((student) => (
         <View
           key={student.id}
           style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
             backgroundColor: Colors.card,
             borderColor: Colors.border,
             borderWidth: 1,
@@ -130,44 +109,12 @@ export default function ClassDetailScreen() {
             marginBottom: Spacing.xs,
           }}
         >
-          <Text style={{ color: Colors.foreground, fontSize: FontSize.sm, fontWeight: '600' }}>
-            {student.full_name || student.email}
-          </Text>
-          <TouchableOpacity onPress={() => removeStudent(student.id)}>
-            <Text style={{ color: Colors.danger, fontSize: FontSize.xs, fontWeight: '600' }}>Remove</Text>
-          </TouchableOpacity>
+          <Text style={{ color: Colors.foreground, fontSize: FontSize.sm, fontWeight: '600' }}>{student.full_name || student.email}</Text>
         </View>
       ))}
 
-      <TextInput
-        placeholder="Search students to add…"
-        placeholderTextColor={Colors.mutedForeground}
-        value={search}
-        onChangeText={setSearch}
-        style={{
-          marginTop: Spacing.sm,
-          borderWidth: 1,
-          borderColor: Colors.border,
-          borderRadius: BorderRadius.md,
-          paddingHorizontal: Spacing.sm,
-          paddingVertical: 10,
-          fontSize: FontSize.sm,
-          color: Colors.foreground,
-        }}
-      />
-      {available.slice(0, 6).map((student) => (
-        <TouchableOpacity
-          key={student.id}
-          onPress={() => addStudent(student)}
-          style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}
-        >
-          <Text style={{ color: Colors.foreground, fontSize: FontSize.sm }}>{student.full_name || student.email}</Text>
-          <Text style={{ color: Colors.primary, fontSize: FontSize.xs, fontWeight: '600' }}>Add</Text>
-        </TouchableOpacity>
-      ))}
-
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.xl, marginBottom: Spacing.md }}>
-        <Text style={{ color: Colors.foreground, fontSize: FontSize.lg, fontWeight: '700' }}>Assignments</Text>
+        <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg }}>Assignments</Text>
         <TouchableOpacity onPress={() => setShowAssignmentForm((v) => !v)}>
           <Text style={{ color: Colors.accent, fontSize: FontSize.sm, fontWeight: '600' }}>New assignment</Text>
         </TouchableOpacity>

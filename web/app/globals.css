@@ -1,29 +1,32 @@
 @import "tailwindcss";
 
 /*
- * Deep/refined SaaS direction (Linear/Notion/Vercel-adjacent), approved via
- * the design mockup published this session. Values match the mockup exactly
- * (oklch), so this cascades to every screen automatically since none of them
- * hardcode colors — they all reference these tokens via Tailwind classes.
+ * "Warm Neutral, tightened" — the B+C direction approved via the design
+ * canvas published this session (theme-canvas). Warm ivory ground, clay
+ * accent for actions, deep teal as the brand/chrome color, tighter radii
+ * and crisper shadows than the softer original. Plain hex (not oklch) so
+ * mobile's constants/theme.ts can mirror these values exactly, byte for
+ * byte — every screen already reads colors through these tokens, never a
+ * hardcoded value, so this file is the only place the palette lives.
  */
 :root {
-  --background: oklch(98.4% 0.002 260);
-  --foreground: oklch(21% 0.015 265);
-  --card: oklch(100% 0 0);
-  --border: oklch(92% 0.004 260);
-  --border-soft: oklch(94.5% 0.003 260);
-  --muted-foreground: oklch(52% 0.012 265);
-  --muted-foreground-2: oklch(64% 0.01 265);
-  --secondary: oklch(95.5% 0.004 260);
-  --primary: oklch(40% 0.15 275);
-  --primary-foreground: oklch(99% 0.002 260);
-  --primary-light: oklch(94.5% 0.025 275);
-  --accent: oklch(68% 0.18 55);
-  --accent-foreground: oklch(99% 0.01 60);
-  --success: oklch(60% 0.13 155);
-  --warning: oklch(72% 0.15 75);
-  --danger: oklch(56% 0.19 25);
-  --info: oklch(63% 0.12 235);
+  --background: #FBF6EF;
+  --foreground: #2B2419;
+  --card: #FFFFFF;
+  --border: #ECE1CE;
+  --border-soft: #F1E9DA;
+  --muted-foreground: #7A6E5C;
+  --muted-foreground-2: #9C917F;
+  --secondary: #F3E9D8;
+  --primary: #2E6F68;
+  --primary-foreground: #FBF6EF;
+  --primary-light: #DCEAE7;
+  --accent: #BE5A2E;
+  --accent-foreground: #FBF6EF;
+  --success: #3E7A52;
+  --warning: #C9932E;
+  --danger: #B03B34;
+  --info: #4C7FA6;
 }
 
 @theme inline {
@@ -44,20 +47,170 @@
   --color-warning: var(--warning);
   --color-danger: var(--danger);
   --color-info: var(--info);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-body);
+  --font-heading: var(--font-heading);
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
 
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --radius-md: 9px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
-  --shadow-sm: 0 1px 2px oklch(21% 0.015 265 / 0.05);
-  --shadow-md: 0 1px 2px oklch(21% 0.015 265 / 0.04), 0 8px 20px -6px oklch(21% 0.015 265 / 0.08);
-  --shadow-lg: 0 24px 60px -12px oklch(21% 0.015 265 / 0.25), 0 4px 16px -4px oklch(21% 0.015 265 / 0.12);
+  --shadow-sm: 0 1px 2px rgba(43,36,25,0.06);
+  --shadow-md: 0 1px 2px rgba(43,36,25,0.05), 0 10px 24px -8px rgba(43,36,25,0.12);
+  --shadow-lg: 0 24px 60px -12px rgba(43,36,25,0.28), 0 4px 16px -4px rgba(43,36,25,0.14);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+/* Lora for headings, Nunito Sans for everything else — set once here so
+   every screen picks it up automatically (components use plain <h1>/<h2>,
+   never a styled div), no per-component font classes needed. */
+h1, h2, h3 {
+  font-family: var(--font-heading);
+}
+
+/* Subtle motion, applied broadly rather than per-component:
+   - a focus ring in the new primary color, replacing the browser default
+   - a gentle lift + shadow-grow on whole-row card links (the repeated
+     "rounded-* border-border bg-card" shape used across every list screen)
+   - a light press-scale + hover-lift on buttons and CTA links
+   - one fade-up entrance, applied to a handful of hero elements
+     (DashboardBanner, the auth cards) rather than everywhere — subtle
+     means restrained, not everything moving at once. */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+button:not(:disabled), [role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+
+/* The plain "rounded-lg border border-border ... hover:bg-secondary" pill
+   used everywhere for secondary actions (End now, Cancel, tab switches,
+   Show answers, ...) had no fill of its own, so it read as a flat outline
+   sitting on the page background. Give it a real surface + soft shadow, and
+   a bit of lift on hover, globally rather than touching every call site. */
+button.border-border {
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+}
+button.border-border:hover:not(:disabled) {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+a.border-border.bg-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+a.border-border.bg-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-light);
+}
+
+button, a.bg-accent, a.bg-primary {
+  transition: transform 0.15s ease, box-shadow 0.2s ease, background-color 0.2s ease, opacity 0.2s ease;
+}
+button:not(:disabled):active {
+  transform: scale(0.98);
+}
+button.bg-accent:hover:not(:disabled), a.bg-accent:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -10px rgba(190,90,46,0.45);
+}
+button.bg-primary:hover:not(:disabled), a.bg-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px -10px rgba(46,111,104,0.4);
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-up {
+  animation: fade-up 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+/* AI-feature treatment — a soft, slow-breathing gradient halo + a gentle
+   sweep across the text, in the spirit of how Apple marks its AI features
+   (a quiet glow, not a loud animation). Two independent pieces so either
+   can be used alone: .ai-glow wraps an icon, .ai-shimmer-text is for a
+   label. Both respect prefers-reduced-motion below. */
+.ai-glow {
+  position: relative;
+  display: inline-flex;
+}
+.ai-glow::before {
+  content: '';
+  position: absolute;
+  inset: -6px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(190,90,46,0.35), rgba(46,111,104,0.25) 60%, transparent 75%);
+  filter: blur(6px);
+  opacity: 0.55;
+  animation: ai-breathe 2.8s ease-in-out infinite;
+  z-index: -1;
+}
+
+@keyframes ai-breathe {
+  0%, 100% { opacity: 0.35; transform: scale(0.92); }
+  50% { opacity: 0.7; transform: scale(1.08); }
+}
+
+.ai-shimmer-text {
+  background: linear-gradient(100deg, var(--accent) 0%, var(--primary) 35%, var(--accent) 60%, var(--primary) 100%);
+  background-size: 220% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: ai-shimmer 4s linear infinite;
+}
+
+@keyframes ai-shimmer {
+  0% { background-position: 0% center; }
+  100% { background-position: -220% center; }
+}
+
+/* Same idea, scoped to a button's own border instead of its icon/label —
+   used for the actual AI action buttons (Generate with AI, Generate) so the
+   glow reads as "this button does something smart," not as decoration on
+   text that sits still (a nav label, a page heading). */
+.ai-border-glow {
+  animation: ai-border-pulse 2.6s ease-in-out infinite;
+}
+@keyframes ai-border-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(190,90,46,0.22), 0 0 0 0 rgba(190,90,46,0); }
+  50% { box-shadow: 0 0 0 1px rgba(190,90,46,0.55), 0 0 14px 3px rgba(190,90,46,0.3); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ai-glow::before,
+  .ai-shimmer-text,
+  .ai-border-glow {
+    animation: none !important;
+  }
+  .ai-shimmer-text {
+    background: none;
+    color: var(--accent);
+  }
+  .ai-border-glow {
+    box-shadow: 0 0 0 1px rgba(190,90,46,0.35);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  a.border-border.bg-card,
+  button, a.bg-accent, a.bg-primary,
+  .animate-fade-up {
+    animation: none !important;
+    transition: none !important;
+  }
 }

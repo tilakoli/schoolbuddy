@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native';
+import { router } from 'expo-router';
 import DashboardBanner, { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
-import { Colors, FontSize, Spacing, BorderRadius } from '@/constants/theme';
+import { Colors, FontFamily, FontSize, Spacing, BorderRadius } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
-interface ClassRow {
+interface ClassGroupRow {
   id: string;
   name: string;
-  subject: string | null;
-  period: string | null;
+  subjectNames: string[];
   studentCount: number;
+  offeringId: string | null;
 }
 
 interface AssignmentRow {
@@ -28,36 +29,62 @@ function dueStatus(dueAt: string | null): { label: string; color: string } {
 }
 
 export default function TeacherDashboard({ name, userId }: { name: string; userId: string }) {
-  const [classes, setClasses] = useState<ClassRow[] | null>(null);
+  const [classes, setClasses] = useState<ClassGroupRow[] | null>(null);
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
+  const [subjectName, setSubjectName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase) return;
     let cancelled = false;
 
     (async () => {
-      const { data: classRows } = await supabase
+      const { data: subjectRow } = await supabase.from('subjects').select('name').eq('teacher_id', userId).maybeSingle();
+      if (!cancelled) setSubjectName(subjectRow?.name ?? null);
+
+      const { data: offeringRows } = await supabase
         .from('classes')
-        .select('id, name, subject, period, enrollments(count)')
+        .select('id, class_group_id, subjects(name), class_groups(name)')
         .eq('teacher_id', userId)
         .order('created_at');
       if (cancelled) return;
+      const offerings = (offeringRows ?? []) as any[];
 
-      const mappedClasses: ClassRow[] = (classRows ?? []).map((row: any) => ({
-        id: row.id,
-        name: row.name,
-        subject: row.subject,
-        period: row.period,
-        studentCount: row.enrollments?.[0]?.count ?? 0,
-      }));
+      const groupIds = [...new Set(offerings.map((o) => o.class_group_id))];
+      const countByGroup = new Map<string, number>();
+      if (groupIds.length > 0) {
+        const { data: enrollmentRows } = await supabase.from('enrollments').select('class_group_id').in('class_group_id', groupIds);
+        (enrollmentRows ?? []).forEach((row: any) => {
+          countByGroup.set(row.class_group_id, (countByGroup.get(row.class_group_id) ?? 0) + 1);
+        });
+      }
+
+      const byGroup = new Map<string, ClassGroupRow>();
+      offerings.forEach((row) => {
+        const id = row.class_group_id;
+        if (!byGroup.has(id)) {
+          byGroup.set(id, {
+            id,
+            name: row.class_groups?.name ?? '',
+            subjectNames: [],
+            studentCount: countByGroup.get(id) ?? 0,
+            offeringId: row.id,
+          });
+        }
+        const subjectName = row.subjects?.name;
+        const entry = byGroup.get(id)!;
+        if (subjectName && !entry.subjectNames.includes(subjectName)) entry.subjectNames.push(subjectName);
+      });
+      const mappedClasses = [...byGroup.values()].sort((a, b) => a.name.localeCompare(b.name));
+      if (cancelled) return;
       setClasses(mappedClasses);
 
-      if (mappedClasses.length === 0) return;
+      const offeringIds = offerings.map((o) => o.id);
+      if (offeringIds.length === 0) return;
 
       const { data: assignmentRows } = await supabase
         .from('assignments')
         .select('id, title, due_at, classes(name)')
-        .in('class_id', mappedClasses.map((c) => c.id))
+        .in('class_id', offeringIds)
         .order('due_at', { ascending: true, nullsFirst: false });
       if (cancelled) return;
       setAssignments(((assignmentRows ?? []) as any[]).map((row) => ({ ...row, className: row.classes?.name ?? '' })));
@@ -91,10 +118,11 @@ export default function TeacherDashboard({ name, userId }: { name: string; userI
       <DashboardBanner
         eyebrow="Welcome back"
         name={name}
+        subtitle={subjectName ? `${subjectName} teacher` : undefined}
         summary={
           classes.length > 0
             ? `Teaching ${studentCount} student${studentCount === 1 ? '' : 's'} across ${classes.length} class${classes.length === 1 ? '' : 'es'}.`
-            : 'Create your first class to get started.'
+            : 'Your classes will show up here once admin assigns your subject to one.'
         }
       />
 
@@ -112,24 +140,25 @@ export default function TeacherDashboard({ name, userId }: { name: string; userI
                 padding: Spacing.md,
               }}
             >
-              <Text style={{ color: tile.text, fontSize: FontSize['2xl'], fontWeight: '700' }}>{stat.value}</Text>
+              <Text style={{ color: tile.text, fontFamily: FontFamily.heading, fontSize: FontSize['2xl'] }}>{stat.value}</Text>
               <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 2 }}>{stat.label}</Text>
             </View>
           );
         })}
       </View>
 
-      <Text style={{ color: Colors.foreground, fontSize: FontSize.lg, fontWeight: '700', marginTop: Spacing.xl, marginBottom: Spacing.md }}>
+      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg, marginTop: Spacing.xl, marginBottom: Spacing.md }}>
         Your classes
       </Text>
       {classes.length === 0 && (
-        <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>No classes yet — create one from the Classes tab.</Text>
+        <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>No classes yet — admin will assign your subject to one.</Text>
       )}
       {classes.map((classItem, i) => {
         const tile = TILE_PALETTE[i % TILE_PALETTE.length];
         return (
-          <View
+          <TouchableOpacity
             key={classItem.id}
+            onPress={() => classItem.offeringId && router.push(`/class/${classItem.offeringId}`)}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
@@ -161,17 +190,14 @@ export default function TeacherDashboard({ name, userId }: { name: string; userI
                 <Text style={{ color: Colors.foreground, fontSize: FontSize.md, fontWeight: '600' }} numberOfLines={1}>
                   {classItem.name}
                 </Text>
-                <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 3 }} numberOfLines={1}>
-                  {[classItem.subject, classItem.period].filter(Boolean).join(' · ')}
-                </Text>
               </View>
             </View>
             <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>{classItem.studentCount} students</Text>
-          </View>
+          </TouchableOpacity>
         );
       })}
 
-      <Text style={{ color: Colors.foreground, fontSize: FontSize.lg, fontWeight: '700', marginTop: Spacing.xl, marginBottom: Spacing.md }}>
+      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg, marginTop: Spacing.xl, marginBottom: Spacing.md }}>
         Upcoming assignments
       </Text>
       {assignments.length === 0 && <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>No assignments yet.</Text>}

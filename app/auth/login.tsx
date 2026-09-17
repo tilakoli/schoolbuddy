@@ -68,6 +68,7 @@ export default function LoginScreen() {
       <Button
         label="Sign in"
         onPress={handleLogin}
+        variant="accent"
         loading={loading}
         disabled={!isSupabaseConfigured || !email.trim() || !password}
       />

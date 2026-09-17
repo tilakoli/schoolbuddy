@@ -1,5 +1,7 @@
 import Link from 'next/link';
+import { getEffectiveStatus } from '@/components/assignments/types';
 import DashboardBanner, { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
+import { fetchTeacherClassGroups } from '@/lib/classGroups';
 import { createClient } from '@/lib/supabase/server';
 
 function formatDue(dueAt: string | null): { label: string; status: 'danger' | 'warning' | 'info' } {
@@ -18,27 +20,34 @@ const STATUS_COLOR = { danger: 'bg-danger', warning: 'bg-warning', info: 'bg-inf
 export default async function TeacherDashboard({ name, userId }: { name: string; userId: string }) {
   const supabase = await createClient();
 
-  const { data: classes } = supabase
-    ? await supabase.from('classes').select('id, name, subject, period, enrollments(count)').eq('teacher_id', userId).order('created_at')
+  const classes = supabase ? await fetchTeacherClassGroups(supabase, userId) : [];
+
+  const { data: subjectRow } = supabase
+    ? await supabase.from('subjects').select('name').eq('teacher_id', userId).maybeSingle()
     : { data: null };
 
-  const classIds = (classes ?? []).map((c) => c.id);
-  const studentCount = (classes ?? []).reduce((sum, c) => sum + (c.enrollments?.[0]?.count ?? 0), 0);
+  const { data: offeringRows } = supabase
+    ? await supabase.from('classes').select('id').eq('teacher_id', userId)
+    : { data: null };
+  const classIds = (offeringRows ?? []).map((c) => c.id);
+  const studentCount = classes.reduce((sum, c) => sum + c.studentCount, 0);
 
   interface AssignmentRow {
     id: string;
     title: string;
     due_at: string | null;
+    status: 'active' | 'ended' | 'cancelled';
     classes: { name: string } | null;
   }
   const { data: assignmentRows } = supabase && classIds.length
     ? await supabase
         .from('assignments')
-        .select('id, title, due_at, classes(name)')
+        .select('id, title, due_at, status, classes(name)')
         .in('class_id', classIds)
         .order('due_at', { ascending: true, nullsFirst: false })
     : { data: [] };
-  const assignments = (assignmentRows ?? []) as unknown as AssignmentRow[];
+  // Cancelled assignments are voided — don't count them as due/overdue.
+  const assignments = ((assignmentRows ?? []) as unknown as AssignmentRow[]).filter((a) => getEffectiveStatus(a) !== 'cancelled');
 
   const now = new Date();
   const dueSoonCount = (assignments ?? []).filter((a) => {
@@ -62,15 +71,16 @@ export default async function TeacherDashboard({ name, userId }: { name: string;
       <DashboardBanner
         eyebrow="Welcome back"
         name={name}
+        subtitle={subjectRow?.name ? `${subjectRow.name} teacher` : undefined}
         summary={
           classCount > 0
             ? `Teaching ${studentCount} student${studentCount === 1 ? '' : 's'} across ${classCount} class${classCount === 1 ? '' : 'es'}.`
-            : 'Create your first class to get started.'
+            : 'Your classes will show up here once admin assigns your subject to one.'
         }
         actions={
           <>
             <Link href="/classes" className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground">
-              + New class
+              View classes
             </Link>
             <Link href="/assignments" className="rounded-lg bg-white/15 px-4 py-2 text-sm font-semibold text-primary-foreground">
               View assignments
@@ -94,23 +104,26 @@ export default async function TeacherDashboard({ name, userId }: { name: string;
       <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">Your classes</h2>
       <div className="space-y-2">
         {(classes ?? []).length === 0 && (
-          <p className="text-sm text-muted-foreground">No classes yet — create one from the Classes tab.</p>
+          <p className="text-sm text-muted-foreground">No classes yet — admin will assign your subject to one.</p>
         )}
-        {(classes ?? []).map((classItem, i) => {
+        {classes.map((classItem, i) => {
           const tile = TILE_PALETTE[i % TILE_PALETTE.length];
           return (
-            <div key={classItem.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card shadow-sm p-4">
+            <Link
+              key={classItem.id}
+              href={classItem.offeringId ? `/classes/${classItem.id}/subjects/${classItem.offeringId}` : `/classes/${classItem.id}`}
+              className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card shadow-sm p-4 hover:border-primary"
+            >
               <div className="flex min-w-0 items-center gap-3">
                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${tile.bg} ${tile.text}`}>
                   {classItem.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <p className="truncate font-semibold text-foreground">{classItem.name}</p>
-                  <p className="mt-1 truncate text-sm text-muted-foreground">{[classItem.subject, classItem.period].filter(Boolean).join(' · ')}</p>
                 </div>
               </div>
-              <p className="shrink-0 text-sm text-muted-foreground">{classItem.enrollments?.[0]?.count ?? 0} students</p>
-            </div>
+              <p className="shrink-0 text-sm text-muted-foreground">{classItem.studentCount} students</p>
+            </Link>
           );
         })}
       </div>

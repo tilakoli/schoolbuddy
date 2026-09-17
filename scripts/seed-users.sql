@@ -11,6 +11,8 @@
 --
 -- Run supabase/migrations/0001_roles.sql first if you haven't — these inserts
 -- rely on the handle_new_user trigger it creates to populate public.profiles.
+-- The vice_principal row needs 0013_vice_principal.sql too (adds that role
+-- to the allowed set) — drop that row first if you haven't run it yet.
 
 do $$
 declare
@@ -20,9 +22,10 @@ declare
   v_role text;
   v_full_name text;
   v_users jsonb := '[
-    {"email": "admin.test@schoolbuddy.dev",   "password": "TestPass123!", "role": "admin",   "full_name": "Test Admin"},
-    {"email": "teacher.test@schoolbuddy.dev", "password": "TestPass123!", "role": "teacher", "full_name": "Test Teacher"},
-    {"email": "student.test@schoolbuddy.dev", "password": "TestPass123!", "role": "student", "full_name": "Test Student"}
+    {"email": "admin.test@schoolbuddy.dev",   "password": "TestPass123!", "role": "admin",           "full_name": "Test Admin"},
+    {"email": "vp.test@schoolbuddy.dev",      "password": "TestPass123!", "role": "vice_principal",  "full_name": "Test Vice Principal"},
+    {"email": "teacher.test@schoolbuddy.dev", "password": "TestPass123!", "role": "teacher",         "full_name": "Test Teacher"},
+    {"email": "student.test@schoolbuddy.dev", "password": "TestPass123!", "role": "student",         "full_name": "Test Student"}
   ]'::jsonb;
   v_user jsonb;
 begin

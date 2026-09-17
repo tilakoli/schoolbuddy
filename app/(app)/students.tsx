@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import Screen from '@/components/shared/Screen';
-import { BorderRadius, Colors, FontSize, Spacing } from '@/constants/theme';
+import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -21,11 +21,23 @@ export default function StudentsScreen() {
     let cancelled = false;
 
     supabase
-      .from('enrollments')
-      .select('profiles(full_name, email), classes!inner(name, teacher_id)')
-      .eq('classes.teacher_id', userId)
-      .order('created_at', { ascending: false })
-      .then(({ data }) => {
+      .from('classes')
+      .select('class_group_id')
+      .eq('teacher_id', userId)
+      .then(async ({ data: offerings }) => {
+        if (cancelled || !supabase) return;
+        const groupIds = [...new Set((offerings ?? []).map((o) => o.class_group_id))];
+        if (groupIds.length === 0) {
+          setRows([]);
+          setLoading(false);
+          return;
+        }
+
+        const { data } = await supabase
+          .from('enrollments')
+          .select('profiles(full_name, email), class_groups(name)')
+          .in('class_group_id', groupIds)
+          .order('created_at', { ascending: false });
         if (cancelled) return;
         setRows(
           ((data ?? []) as any[])
@@ -33,7 +45,7 @@ export default function StudentsScreen() {
             .map((row, index) => ({
               key: String(index),
               name: row.profiles.full_name || row.profiles.email,
-              className: row.classes.name,
+              className: row.class_groups?.name ?? '',
             }))
         );
         setLoading(false);
@@ -46,7 +58,7 @@ export default function StudentsScreen() {
 
   return (
     <Screen scroll>
-      <Text style={{ color: Colors.foreground, fontSize: 28, fontWeight: '700' }}>Students</Text>
+      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: 26 }}>Students</Text>
       <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 4, marginBottom: Spacing.xl }}>
         Students across your classes.
       </Text>

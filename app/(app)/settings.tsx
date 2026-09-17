@@ -3,13 +3,14 @@ import { router } from 'expo-router';
 import Button from '@/components/shared/Button';
 import Screen from '@/components/shared/Screen';
 import { APP_CONFIG } from '@/constants/config';
-import { BorderRadius, Colors, FontSize, Spacing } from '@/constants/theme';
+import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
 import { getErrorMessage } from '@/lib/errors';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 
 const ROLE_LABEL: Record<string, string> = {
   admin: 'Admin',
+  vice_principal: 'Vice Principal',
   teacher: 'Teacher',
   student: 'Student',
 };
@@ -30,7 +31,7 @@ export default function SettingsScreen() {
 
   return (
     <Screen>
-      <Text style={{ color: Colors.foreground, fontSize: 32, fontWeight: '700' }}>Settings</Text>
+      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: 30 }}>Settings</Text>
       <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.md, marginTop: 6 }}>
         Manage your account.
       </Text>

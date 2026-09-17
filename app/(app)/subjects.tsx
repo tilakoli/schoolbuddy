@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import Screen from '@/components/shared/Screen';
-import { BorderRadius, Colors, FontSize, Spacing } from '@/constants/theme';
+import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
 interface SubjectRow {
   id: string;
-  name: string;
-  subject: string | null;
+  subjectName: string;
+  groupName: string | null;
   period: string | null;
   room: string | null;
 }
@@ -24,11 +24,19 @@ export default function SubjectsScreen() {
     // signed-in student's own enrolled classes.
     supabase
       .from('classes')
-      .select('*')
+      .select('id, name, period, room, subjects(name), class_groups(name)')
       .order('name')
       .then(({ data }) => {
         if (cancelled) return;
-        setSubjects((data as SubjectRow[]) ?? []);
+        setSubjects(
+          ((data ?? []) as any[]).map((row) => ({
+            id: row.id,
+            subjectName: row.subjects?.name ?? row.name,
+            groupName: row.class_groups?.name ?? null,
+            period: row.period,
+            room: row.room,
+          }))
+        );
         setLoading(false);
       });
 
@@ -39,7 +47,7 @@ export default function SubjectsScreen() {
 
   return (
     <Screen scroll>
-      <Text style={{ color: Colors.foreground, fontSize: 28, fontWeight: '700' }}>Subjects</Text>
+      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: 26 }}>Subjects</Text>
       <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 4, marginBottom: Spacing.xl }}>
         Your enrolled subjects this term.
       </Text>
@@ -67,9 +75,9 @@ export default function SubjectsScreen() {
               }}
             >
               <View>
-                <Text style={{ color: Colors.foreground, fontSize: FontSize.md, fontWeight: '600' }}>{subject.name}</Text>
+                <Text style={{ color: Colors.foreground, fontSize: FontSize.md, fontWeight: '600' }}>{subject.subjectName}</Text>
                 <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 3 }}>
-                  {[subject.subject, subject.period].filter(Boolean).join(' · ')}
+                  {[subject.groupName, subject.period].filter(Boolean).join(' · ')}
                 </Text>
               </View>
               <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>{subject.room}</Text>

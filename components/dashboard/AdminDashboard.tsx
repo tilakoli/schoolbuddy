@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import DashboardBanner, { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
-import { BorderRadius, Colors, FontSize, Spacing } from '@/constants/theme';
+import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
 interface Counts {
-  admins: number;
+  staff: number;
   teachers: number;
   students: number;
+  classes: number;
+  subjects: number;
+  assignments: number;
 }
 
 export default function AdminDashboard({ name }: { name: string }) {
@@ -17,17 +20,22 @@ export default function AdminDashboard({ name }: { name: string }) {
     if (!supabase) return;
     let cancelled = false;
 
-    supabase
-      .from('profiles')
-      .select('role')
-      .then(({ data }) => {
-        if (cancelled || !data) return;
-        setCounts({
-          admins: data.filter((row) => row.role === 'admin').length,
-          teachers: data.filter((row) => row.role === 'teacher').length,
-          students: data.filter((row) => row.role === 'student').length,
-        });
+    Promise.all([
+      supabase.from('profiles').select('role'),
+      supabase.from('class_groups').select('id'),
+      supabase.from('subjects').select('id'),
+      supabase.from('assignments').select('id'),
+    ]).then(([profilesRes, classGroupsRes, subjectsRes, assignmentsRes]) => {
+      if (cancelled || !profilesRes.data) return;
+      setCounts({
+        staff: profilesRes.data.filter((row) => row.role === 'admin' || row.role === 'vice_principal').length,
+        teachers: profilesRes.data.filter((row) => row.role === 'teacher').length,
+        students: profilesRes.data.filter((row) => row.role === 'student').length,
+        classes: classGroupsRes.data?.length ?? 0,
+        subjects: subjectsRes.data?.length ?? 0,
+        assignments: assignmentsRes.data?.length ?? 0,
       });
+    });
 
     return () => {
       cancelled = true;
@@ -37,14 +45,20 @@ export default function AdminDashboard({ name }: { name: string }) {
   const stats = [
     { label: 'Teachers', value: counts ? String(counts.teachers) : '—' },
     { label: 'Students', value: counts ? String(counts.students) : '—' },
-    { label: 'Admins', value: counts ? String(counts.admins) : '—' },
+    { label: 'Staff (admin + VP)', value: counts ? String(counts.staff) : '—' },
     {
       label: 'Total accounts',
-      value: counts ? String(counts.admins + counts.teachers + counts.students) : '—',
+      value: counts ? String(counts.staff + counts.teachers + counts.students) : '—',
     },
   ];
 
-  const total = counts ? counts.admins + counts.teachers + counts.students : null;
+  const schoolStats = [
+    { label: 'Classes', value: counts ? String(counts.classes) : '—' },
+    { label: 'Subjects', value: counts ? String(counts.subjects) : '—' },
+    { label: 'Assignments', value: counts ? String(counts.assignments) : '—' },
+  ];
+
+  const total = counts ? counts.staff + counts.teachers + counts.students : null;
 
   return (
     <>
@@ -75,7 +89,7 @@ export default function AdminDashboard({ name }: { name: string }) {
                 padding: Spacing.md,
               }}
             >
-              <Text style={{ color: tile.text, fontSize: FontSize['2xl'], fontWeight: '700' }}>
+              <Text style={{ color: tile.text, fontFamily: FontFamily.heading, fontSize: FontSize['2xl'] }}>
                 {stat.value}
               </Text>
               <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 2 }}>
@@ -86,7 +100,35 @@ export default function AdminDashboard({ name }: { name: string }) {
         })}
       </View>
 
-      <Text style={{ color: Colors.foreground, fontSize: FontSize.lg, fontWeight: '700', marginTop: Spacing.xl, marginBottom: Spacing.md }}>
+      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg, marginTop: Spacing.xl, marginBottom: Spacing.md }}>
+        School overview
+      </Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
+        {schoolStats.map((stat, i) => {
+          const tile = TILE_PALETTE[(i + 4) % TILE_PALETTE.length];
+          return (
+            <View
+              key={stat.label}
+              style={{
+                flexBasis: '30%',
+                flexGrow: 1,
+                backgroundColor: tile.bg,
+                borderRadius: BorderRadius.lg,
+                padding: Spacing.md,
+              }}
+            >
+              <Text style={{ color: tile.text, fontFamily: FontFamily.heading, fontSize: FontSize['2xl'] }}>
+                {stat.value}
+              </Text>
+              <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 2 }}>
+                {stat.label}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+
+      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg, marginTop: Spacing.xl, marginBottom: Spacing.md }}>
         User management
       </Text>
       <View

@@ -38,66 +38,74 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="flex flex-1 items-center justify-center px-6 py-16">
-      <div className="w-full max-w-sm">
-        <p className="text-xs font-bold tracking-[0.15em] text-primary">WELCOME BACK</p>
-        <h1 className="mt-2 text-3xl font-bold text-foreground">Sign in to {APP_CONFIG.name}.</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Use the email and password your school administrator gave you.
-        </p>
+    <>
+      <header className="px-6 py-5">
+        <Link href="/" className="font-heading text-lg font-semibold text-foreground">
+          {APP_CONFIG.name}
+        </Link>
+      </header>
 
-        {!isSupabaseConfigured && (
-          <div className="mt-6">
-            <ConfigNotice />
-          </div>
-        )}
+      <main className="flex flex-1 items-center justify-center px-6 py-16">
+        <div className="animate-fade-up w-full max-w-sm">
+          <p className="text-xs font-bold tracking-[0.15em] text-primary">WELCOME BACK</p>
+          <h1 className="mt-2 text-3xl font-bold text-foreground">Sign in to {APP_CONFIG.name}.</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Use the email and password your school administrator gave you.
+          </p>
 
-        <form onSubmit={handleLogin} className="mt-8 space-y-4">
-          <div>
-            <label className="text-sm font-medium text-foreground" htmlFor="email">
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-border bg-card shadow-sm px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium text-foreground" htmlFor="password">
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              autoComplete="current-password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="mt-1 w-full rounded-lg border border-border bg-card shadow-sm px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
-            />
-            {error && <p className="mt-2 text-sm text-danger">{error}</p>}
-          </div>
+          {!isSupabaseConfigured && (
+            <div className="mt-6">
+              <ConfigNotice />
+            </div>
+          )}
 
-          <div className="flex justify-end">
-            <Link href="/forgot-password" className="text-sm text-primary">
-              Forgot password?
-            </Link>
-          </div>
+          <form onSubmit={handleLogin} className="mt-8 space-y-4">
+            <div>
+              <label className="text-sm font-medium text-foreground" htmlFor="email">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-border bg-card shadow-sm px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-foreground" htmlFor="password">
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-border bg-card shadow-sm px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+              />
+              {error && <p className="mt-2 text-sm text-danger">{error}</p>}
+            </div>
 
-          <button
-            type="submit"
-            disabled={!isSupabaseConfigured || !email.trim() || !password || loading}
-            className="w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-          >
-            {loading ? 'Signing in…' : 'Sign in'}
-          </button>
-        </form>
-      </div>
-    </main>
+            <div className="flex justify-end">
+              <Link href="/forgot-password" className="text-sm text-primary">
+                Forgot password?
+              </Link>
+            </div>
+
+            <button
+              type="submit"
+              disabled={!isSupabaseConfigured || !email.trim() || !password || loading}
+              className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground disabled:opacity-50"
+            >
+              {loading ? 'Signing in…' : 'Sign in'}
+            </button>
+          </form>
+        </div>
+      </main>
+    </>
   );
 }

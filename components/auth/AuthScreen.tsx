@@ -1,7 +1,7 @@
 import type { PropsWithChildren, ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, Text, View } from 'react-native';
 import Screen from '@/components/shared/Screen';
-import { Colors, FontSize, Spacing } from '@/constants/theme';
+import { Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
 
 type AuthScreenProps = PropsWithChildren<{
   eyebrow: string;
@@ -31,9 +31,9 @@ export default function AuthScreen({ eyebrow, title, description, children, foot
         <Text
           style={{
             color: Colors.foreground,
-            fontSize: 36,
-            fontWeight: '700',
-            lineHeight: 43,
+            fontFamily: FontFamily.heading,
+            fontSize: 34,
+            lineHeight: 41,
             marginBottom: Spacing.sm,
           }}
         >

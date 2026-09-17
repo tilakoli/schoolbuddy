@@ -22,7 +22,7 @@ export default function HomeScreen() {
 
   return (
     <Screen scroll>
-      {profile?.role === 'admin' && <AdminDashboard name={name} />}
+      {(profile?.role === 'admin' || profile?.role === 'vice_principal') && <AdminDashboard name={name} />}
       {profile?.role === 'teacher' && user && <TeacherDashboard name={name} userId={user.id} />}
       {(!profile || profile.role === 'student') && <StudentDashboard name={name} />}
     </Screen>

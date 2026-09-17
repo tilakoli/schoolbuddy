@@ -17,6 +17,13 @@ export async function POST(request: Request) {
   const supabaseAdmin = createAdminClient();
   if (!supabaseAdmin) return NextResponse.json({ error: 'Supabase is not configured.' }, { status: 500 });
 
+  if (auth.role === 'vice_principal') {
+    const { data: target } = await supabaseAdmin.from('profiles').select('role').eq('id', userId).single();
+    if (target?.role === 'admin') {
+      return NextResponse.json({ error: 'Vice principals cannot manage admin accounts.' }, { status: 403 });
+    }
+  }
+
   const { error: authError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
     ban_duration: restricted ? '876000h' : 'none',
   });

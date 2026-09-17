@@ -11,8 +11,20 @@ export default async function AssignmentsPage() {
   if (!supabase) redirect('/dashboard');
 
   if (profile.role === 'teacher') {
-    const { data: classes } = await supabase.from('classes').select('id, name').eq('teacher_id', user!.id).order('name');
-    const classOptions = classes ?? [];
+    const { data: classes } = await supabase
+      .from('classes')
+      .select('id, name, class_groups(name)')
+      .eq('teacher_id', user!.id)
+      .order('name');
+    interface OfferingRow {
+      id: string;
+      name: string;
+      class_groups: { name: string } | null;
+    }
+    const classOptions = ((classes ?? []) as unknown as OfferingRow[]).map((row) => ({
+      id: row.id,
+      name: row.class_groups?.name ? `${row.class_groups.name} · ${row.name}` : row.name,
+    }));
 
     const { data: assignmentRows } = classOptions.length
       ? await supabase

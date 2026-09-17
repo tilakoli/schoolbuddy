@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import DashboardBanner, { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
+import { getEffectiveStatus } from '@/components/assignments/types';
 import { createClient } from '@/lib/supabase/server';
 
 function formatDue(dueAt: string | null): { label: string; status: 'danger' | 'warning' | 'info' } {
@@ -19,20 +20,38 @@ export default async function StudentDashboard({ name }: { name: string }) {
   const supabase = await createClient();
 
   // RLS already scopes both queries to this student's own enrolled classes.
-  const { data: classes } = supabase
-    ? await supabase.from('classes').select('id, name, subject, period, room').order('name')
+  interface ClassRow {
+    id: string;
+    name: string;
+    period: string | null;
+    room: string | null;
+    subjects: { name: string } | null;
+    class_groups: { name: string } | null;
+  }
+  const { data: classRows } = supabase
+    ? await supabase.from('classes').select('id, name, period, room, subjects(name), class_groups(name)').order('name')
     : { data: null };
+  const classes = ((classRows ?? []) as unknown as ClassRow[]).map((row) => ({
+    ...row,
+    subjectName: row.subjects?.name ?? row.name,
+    groupName: row.class_groups?.name ?? null,
+  }));
 
   interface AssignmentRow {
     id: string;
     title: string;
     due_at: string | null;
+    status: 'active' | 'ended' | 'cancelled';
     classes: { name: string } | null;
   }
   const { data: assignmentRows } = supabase
-    ? await supabase.from('assignments').select('id, title, due_at, classes(name)').order('due_at', { ascending: true, nullsFirst: false })
+    ? await supabase
+        .from('assignments')
+        .select('id, title, due_at, status, classes(name)')
+        .order('due_at', { ascending: true, nullsFirst: false })
     : { data: [] };
-  const assignments = (assignmentRows ?? []) as unknown as AssignmentRow[];
+  // Cancelled assignments are voided — don't count them as overdue/upcoming.
+  const assignments = ((assignmentRows ?? []) as unknown as AssignmentRow[]).filter((a) => getEffectiveStatus(a) !== 'cancelled');
 
   const now = new Date();
   const dueSoonCount = (assignments ?? []).filter((a) => {
@@ -92,11 +111,11 @@ export default async function StudentDashboard({ name }: { name: string }) {
             <div key={classItem.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card shadow-sm p-4">
               <div className="flex min-w-0 items-center gap-3">
                 <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${tile.bg} ${tile.text}`}>
-                  {classItem.name.slice(0, 2).toUpperCase()}
+                  {classItem.subjectName.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="truncate font-semibold text-foreground">{classItem.name}</p>
-                  <p className="mt-1 truncate text-sm text-muted-foreground">{[classItem.subject, classItem.period].filter(Boolean).join(' · ')}</p>
+                  <p className="truncate font-semibold text-foreground">{classItem.subjectName}</p>
+                  <p className="mt-1 truncate text-sm text-muted-foreground">{[classItem.groupName, classItem.period].filter(Boolean).join(' · ')}</p>
                 </div>
               </div>
               <p className="shrink-0 text-sm text-muted-foreground">{classItem.room}</p>

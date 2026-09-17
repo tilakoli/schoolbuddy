@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Button from '@/components/shared/Button';
 import Screen from '@/components/shared/Screen';
-import { BorderRadius, Colors, FontSize, Spacing } from '@/constants/theme';
+import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -42,9 +42,16 @@ export default function AssignmentsScreen() {
 
     (async () => {
       if (isTeacher) {
-        const { data: classes } = await supabase.from('classes').select('id, name').eq('teacher_id', user.id).order('name');
+        const { data: classes } = await supabase
+          .from('classes')
+          .select('id, name, class_groups(name)')
+          .eq('teacher_id', user.id)
+          .order('name');
         if (cancelled) return;
-        const options = classes ?? [];
+        const options = ((classes ?? []) as any[]).map((row) => ({
+          id: row.id,
+          name: row.class_groups?.name ? `${row.class_groups.name} · ${row.name}` : row.name,
+        }));
         setClassOptions(options);
 
         if (options.length === 0) {
@@ -81,7 +88,7 @@ export default function AssignmentsScreen() {
     <Screen scroll>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View>
-          <Text style={{ color: Colors.foreground, fontSize: 28, fontWeight: '700' }}>Assignments</Text>
+          <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: 26 }}>Assignments</Text>
           <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 4 }}>
             {isTeacher ? 'Across all your classes.' : 'Across all your subjects.'}
           </Text>

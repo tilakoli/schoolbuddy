@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 
-export type Role = 'admin' | 'teacher' | 'student';
+export type Role = 'admin' | 'vice_principal' | 'teacher' | 'student';
 
 export interface Profile {
   id: string;
@@ -8,6 +8,7 @@ export interface Profile {
   full_name: string | null;
   role: Role;
   restricted: boolean;
+  school_id: string;
 }
 
 export async function getUserAndProfile() {

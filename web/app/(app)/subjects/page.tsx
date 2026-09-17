@@ -9,8 +9,22 @@ export default async function SubjectsPage() {
   const supabase = await createClient();
   // RLS ("Students view enrolled classes") already restricts this to the
   // classes the signed-in student is enrolled in.
-  const { data } = supabase ? await supabase.from('classes').select('*').order('name') : { data: null };
-  const subjects = data ?? [];
+  const { data } = supabase
+    ? await supabase.from('classes').select('*, subjects(name), class_groups(name)').order('name')
+    : { data: null };
+  interface Row {
+    id: string;
+    name: string;
+    period: string | null;
+    room: string | null;
+    subjects: { name: string } | null;
+    class_groups: { name: string } | null;
+  }
+  const subjects = ((data ?? []) as unknown as Row[]).map((row) => ({
+    ...row,
+    subjectName: row.subjects?.name ?? row.name,
+    groupName: row.class_groups?.name ?? null,
+  }));
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
@@ -24,9 +38,9 @@ export default async function SubjectsPage() {
         {subjects.map((subject) => (
           <div key={subject.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card shadow-sm p-4">
             <div className="min-w-0">
-              <p className="truncate font-semibold text-foreground">{subject.name}</p>
+              <p className="truncate font-semibold text-foreground">{subject.subjectName}</p>
               <p className="mt-1 truncate text-sm text-muted-foreground">
-                {[subject.subject, subject.period].filter(Boolean).join(' · ') || 'No details yet'}
+                {[subject.groupName, subject.period].filter(Boolean).join(' · ') || 'No details yet'}
               </p>
             </div>
             <p className="shrink-0 text-sm text-muted-foreground">{subject.room}</p>

@@ -63,6 +63,7 @@ export default function ForgotPasswordScreen() {
       <Button
         label="Send reset instructions"
         onPress={handleReset}
+        variant="accent"
         loading={loading}
         disabled={!isSupabaseConfigured || !email.trim()}
       />

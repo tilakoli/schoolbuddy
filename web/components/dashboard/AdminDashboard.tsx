@@ -4,17 +4,32 @@ import { createClient } from '@/lib/supabase/server';
 
 export default async function AdminDashboard({ name }: { name: string }) {
   const supabase = await createClient();
-  const { data } = supabase ? await supabase.from('profiles').select('role') : { data: null };
+  const [{ data: profileRows }, { data: classGroups }, { data: subjects }, { data: assignments }] = supabase
+    ? await Promise.all([
+        supabase.from('profiles').select('role'),
+        supabase.from('class_groups').select('id'),
+        supabase.from('subjects').select('id'),
+        supabase.from('assignments').select('id'),
+      ])
+    : [{ data: null }, { data: null }, { data: null }, { data: null }];
 
-  const admins = data?.filter((row) => row.role === 'admin').length ?? 0;
-  const teachers = data?.filter((row) => row.role === 'teacher').length ?? 0;
-  const students = data?.filter((row) => row.role === 'student').length ?? 0;
+  const admins = profileRows?.filter((row) => row.role === 'admin').length ?? 0;
+  const vicePrincipals = profileRows?.filter((row) => row.role === 'vice_principal').length ?? 0;
+  const teachers = profileRows?.filter((row) => row.role === 'teacher').length ?? 0;
+  const students = profileRows?.filter((row) => row.role === 'student').length ?? 0;
+  const staff = admins + vicePrincipals;
 
   const stats = [
     { label: 'Teachers', value: teachers },
     { label: 'Students', value: students },
-    { label: 'Admins', value: admins },
-    { label: 'Total accounts', value: admins + teachers + students },
+    { label: 'Staff (admin + VP)', value: staff },
+    { label: 'Total accounts', value: staff + teachers + students },
+  ];
+
+  const schoolStats = [
+    { label: 'Classes', value: classGroups?.length ?? 0 },
+    { label: 'Subjects', value: subjects?.length ?? 0 },
+    { label: 'Assignments', value: assignments?.length ?? 0 },
   ];
 
   return (
@@ -22,7 +37,7 @@ export default async function AdminDashboard({ name }: { name: string }) {
       <DashboardBanner
         eyebrow="Welcome back"
         name={name}
-        summary={`Overseeing ${admins + teachers + students} accounts across the school.`}
+        summary={`Overseeing ${staff + teachers + students} accounts across the school.`}
         actions={
           <>
             <Link href="/admin/teachers" className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground">
@@ -38,6 +53,19 @@ export default async function AdminDashboard({ name }: { name: string }) {
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {stats.map((stat, i) => {
           const tile = TILE_PALETTE[i % TILE_PALETTE.length];
+          return (
+            <div key={stat.label} className={`rounded-xl ${tile.bg} p-4`}>
+              <p className={`text-2xl font-bold ${tile.text}`}>{stat.value}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">School overview</h2>
+      <div className="grid grid-cols-3 gap-3">
+        {schoolStats.map((stat, i) => {
+          const tile = TILE_PALETTE[(i + 4) % TILE_PALETTE.length];
           return (
             <div key={stat.label} className={`rounded-xl ${tile.bg} p-4`}>
               <p className={`text-2xl font-bold ${tile.text}`}>{stat.value}</p>

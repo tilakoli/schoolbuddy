@@ -1,4 +1,5 @@
-import { TouchableOpacity, Text, ActivityIndicator, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, Text, ActivityIndicator, type StyleProp, type ViewStyle } from 'react-native';
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { Colors, FontFamily, FontSize, BorderRadius } from '@/constants/theme';
 
 type ButtonVariant = 'primary' | 'accent' | 'secondary' | 'outline';
@@ -36,6 +37,8 @@ const styles: Record<ButtonVariant, { bg: string; border: string; text: string }
   },
 };
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 export default function Button({
   label,
   onPress,
@@ -47,12 +50,22 @@ export default function Button({
 }: ButtonProps) {
   const s = styles[variant];
   const isDisabled = disabled || loading;
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   return (
-    <TouchableOpacity
+    <AnimatedPressable
       onPress={onPress}
+      onPressIn={() => {
+        scale.value = withTiming(0.97, { duration: 100 });
+      }}
+      onPressOut={() => {
+        scale.value = withTiming(1, { duration: 150 });
+      }}
       disabled={isDisabled}
-      activeOpacity={0.85}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       accessibilityState={{ disabled: isDisabled, busy: loading }}
@@ -67,6 +80,7 @@ export default function Button({
           justifyContent: 'center',
           opacity: isDisabled ? 0.4 : 1,
         },
+        animatedStyle,
         style,
       ]}
     >
@@ -81,6 +95,6 @@ export default function Button({
           {label}
         </Text>
       )}
-    </TouchableOpacity>
+    </AnimatedPressable>
   );
 }

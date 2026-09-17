@@ -10,11 +10,11 @@ export interface StudentOption {
 }
 
 export default function RosterManager({
-  classId,
+  classGroupId,
   initialRoster,
   allStudents,
 }: {
-  classId: string;
+  classGroupId: string;
   initialRoster: StudentOption[];
   allStudents: StudentOption[];
 }) {
@@ -37,7 +37,7 @@ export default function RosterManager({
     if (!supabase) return;
     setPendingId(student.id);
     setError(undefined);
-    const { error: insertError } = await supabase.from('enrollments').insert({ class_id: classId, student_id: student.id });
+    const { error: insertError } = await supabase.from('enrollments').insert({ class_group_id: classGroupId, student_id: student.id });
     setPendingId(null);
     if (insertError) {
       setError(insertError.message);
@@ -54,7 +54,7 @@ export default function RosterManager({
     const { error: deleteError } = await supabase
       .from('enrollments')
       .delete()
-      .eq('class_id', classId)
+      .eq('class_group_id', classGroupId)
       .eq('student_id', studentId);
     setPendingId(null);
     if (deleteError) {

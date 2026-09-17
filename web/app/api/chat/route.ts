@@ -1,5 +1,6 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { checkAiRateLimit } from '@/lib/aiRateLimit';
 import { createClient } from '@/lib/supabase/server';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -34,6 +35,14 @@ export async function POST(request: Request) {
   const user = await getAuthedUser(request);
   if (!user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
 
+  const rate = await checkAiRateLimit(user.id, 'chat');
+  if (!rate.ok) {
+    return NextResponse.json(
+      { error: `You're sending messages too quickly — wait a few minutes and try again.` },
+      { status: 429 }
+    );
+  }
+
   if (!geminiApiKey) {
     return NextResponse.json({ error: 'AI chat is not configured yet — ask an admin to set GEMINI_API_KEY.' }, { status: 500 });
   }
@@ -41,6 +50,11 @@ export async function POST(request: Request) {
   const { messages } = (await request.json()) as { messages?: ChatMessage[] };
   if (!Array.isArray(messages) || messages.length === 0) {
     return NextResponse.json({ error: 'messages is required.' }, { status: 400 });
+  }
+  // Every turn resends the full history, so cost grows with conversation
+  // length — cap it so one long-running chat can't balloon unbounded.
+  if (messages.length > 60) {
+    return NextResponse.json({ error: 'This conversation has gotten long — start a new chat.' }, { status: 400 });
   }
 
   const contents = messages.map((m) => ({

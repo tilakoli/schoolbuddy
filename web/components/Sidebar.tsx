@@ -5,8 +5,8 @@ import { usePathname } from 'next/navigation';
 import SignOutButton from '@/components/SignOutButton';
 import { APP_CONFIG } from '@/constants/config';
 import {
-  BookIcon,
   CalendarIcon,
+  ChatIcon,
   ClipboardIcon,
   FileTextIcon,
   GridIcon,
@@ -23,22 +23,32 @@ type IconComponent = typeof HomeIcon;
 const NAV: Record<Role, { href: string; label: string; icon: IconComponent }[]> = {
   admin: [
     { href: '/dashboard', label: 'Dashboard', icon: HomeIcon },
+    { href: '/ai-chat', label: 'AI Chat', icon: ChatIcon },
+    { href: '/classes', label: 'Classes', icon: GridIcon },
+    { href: '/admin/teachers', label: 'Teachers', icon: UsersIcon },
+    { href: '/admin/students', label: 'Students', icon: UsersIcon },
+  ],
+  vice_principal: [
+    { href: '/dashboard', label: 'Dashboard', icon: HomeIcon },
+    { href: '/ai-chat', label: 'AI Chat', icon: ChatIcon },
+    { href: '/classes', label: 'Classes', icon: GridIcon },
     { href: '/admin/teachers', label: 'Teachers', icon: UsersIcon },
     { href: '/admin/students', label: 'Students', icon: UsersIcon },
   ],
   teacher: [
     { href: '/dashboard', label: 'Dashboard', icon: HomeIcon },
+    { href: '/ai-chat', label: 'AI Chat', icon: ChatIcon },
     { href: '/classes', label: 'Classes', icon: GridIcon },
     { href: '/students', label: 'Students', icon: UsersIcon },
     { href: '/assignments', label: 'Assignments', icon: ClipboardIcon },
     { href: '/exams', label: 'Exams', icon: FileTextIcon },
-    { href: '/curriculum', label: 'Curriculum', icon: BookIcon },
     { href: '/performance', label: 'Performance', icon: TrendingUpIcon },
     { href: '/timetable', label: 'Timetable', icon: CalendarIcon },
     { href: '/learning-videos', label: 'Learning Videos', icon: PlayCircleIcon },
   ],
   student: [
     { href: '/dashboard', label: 'Dashboard', icon: HomeIcon },
+    { href: '/ai-chat', label: 'AI Chat', icon: ChatIcon },
     { href: '/subjects', label: 'Subjects', icon: GridIcon },
     { href: '/assignments', label: 'Assignments', icon: ClipboardIcon },
     { href: '/exams', label: 'Exams', icon: FileTextIcon },
@@ -54,12 +64,12 @@ export default function Sidebar({ role, onNavigate }: { role: Role; onNavigate?:
 
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border-soft bg-card px-4 py-6">
-      <div className="flex items-center gap-2 px-2 pb-2">
+      <Link href="/dashboard" onClick={onNavigate} className="flex items-center gap-2 rounded-lg px-2 pb-2 hover:opacity-80">
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
           {APP_CONFIG.name.charAt(0)}
         </div>
         <p className="text-sm font-bold text-foreground">{APP_CONFIG.name}</p>
-      </div>
+      </Link>
 
       <nav className="mt-6 flex-1 space-y-1 overflow-y-auto">
         {items.map((item) => {

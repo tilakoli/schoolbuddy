@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
 import DashboardBanner, { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
-import { Colors, FontSize, Spacing, BorderRadius } from '@/constants/theme';
+import { Colors, FontFamily, FontSize, Spacing, BorderRadius } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
 interface ClassRow {
   id: string;
-  name: string;
-  subject: string | null;
+  subjectName: string;
+  groupName: string | null;
   period: string | null;
   room: string | null;
 }
@@ -38,11 +38,19 @@ export default function StudentDashboard({ name }: { name: string }) {
     (async () => {
       // RLS already scopes both queries to this student's own enrolled classes.
       const [{ data: classRows }, { data: assignmentRows }] = await Promise.all([
-        supabase.from('classes').select('*').order('name'),
+        supabase.from('classes').select('id, name, period, room, subjects(name), class_groups(name)').order('name'),
         supabase.from('assignments').select('id, title, due_at, classes(name)').order('due_at', { ascending: true, nullsFirst: false }),
       ]);
       if (cancelled) return;
-      setClasses((classRows as ClassRow[]) ?? []);
+      setClasses(
+        ((classRows ?? []) as any[]).map((row) => ({
+          id: row.id,
+          subjectName: row.subjects?.name ?? row.name,
+          groupName: row.class_groups?.name ?? null,
+          period: row.period,
+          room: row.room,
+        }))
+      );
       setAssignments(((assignmentRows ?? []) as any[]).map((row) => ({ ...row, className: row.classes?.name ?? '' })));
     })();
 
@@ -99,14 +107,14 @@ export default function StudentDashboard({ name }: { name: string }) {
                 padding: Spacing.md,
               }}
             >
-              <Text style={{ color: tile.text, fontSize: FontSize['2xl'], fontWeight: '700' }}>{stat.value}</Text>
+              <Text style={{ color: tile.text, fontFamily: FontFamily.heading, fontSize: FontSize['2xl'] }}>{stat.value}</Text>
               <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 2 }}>{stat.label}</Text>
             </View>
           );
         })}
       </View>
 
-      <Text style={{ color: Colors.foreground, fontSize: FontSize.lg, fontWeight: '700', marginTop: Spacing.xl, marginBottom: Spacing.md }}>
+      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg, marginTop: Spacing.xl, marginBottom: Spacing.md }}>
         My classes
       </Text>
       {classes.length === 0 && (
@@ -141,15 +149,15 @@ export default function StudentDashboard({ name }: { name: string }) {
                 }}
               >
                 <Text style={{ color: tile.text, fontSize: FontSize.sm, fontWeight: '700' }}>
-                  {classItem.name.slice(0, 2).toUpperCase()}
+                  {classItem.subjectName.slice(0, 2).toUpperCase()}
                 </Text>
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: Colors.foreground, fontSize: FontSize.md, fontWeight: '600' }} numberOfLines={1}>
-                  {classItem.name}
+                  {classItem.subjectName}
                 </Text>
                 <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 3 }} numberOfLines={1}>
-                  {[classItem.subject, classItem.period].filter(Boolean).join(' · ')}
+                  {[classItem.groupName, classItem.period].filter(Boolean).join(' · ')}
                 </Text>
               </View>
             </View>
@@ -158,7 +166,7 @@ export default function StudentDashboard({ name }: { name: string }) {
         );
       })}
 
-      <Text style={{ color: Colors.foreground, fontSize: FontSize.lg, fontWeight: '700', marginTop: Spacing.xl, marginBottom: Spacing.md }}>
+      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg, marginTop: Spacing.xl, marginBottom: Spacing.md }}>
         Upcoming assignments
       </Text>
       {assignments.length === 0 && <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>No assignments yet.</Text>}

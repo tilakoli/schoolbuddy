@@ -3,54 +3,65 @@
  * Central source of truth for design tokens used outside of Tailwind/NativeWind.
  * Use for StyleSheet, Animated values, or third-party components.
  *
- * Deep/refined SaaS direction (Linear/Notion/Vercel-adjacent) — values
- * converted precisely from the approved oklch mockup palette so mobile and
- * web match exactly. See web/app/globals.css for the web token side.
+ * "Warm Neutral, tightened" — the B+C direction approved via the design
+ * canvas published this session (theme-canvas). Values match
+ * web/app/globals.css exactly (plain hex there too now, not oklch), so
+ * mobile and web stay in sync.
  */
 
 export const Colors = {
   // --- Core Brand ---
-  primary: '#343996',
-  primaryLight: '#E8ECFE',
-  primaryBorder: '#B4BCDF',
-  primaryMuted: '#C8D4FF',
-  primaryForeground: '#FBFCFD',
-  accent: '#E97300',
-  accentForeground: '#FFFAF5',
+  primary: '#2E6F68',
+  primaryLight: '#DCEAE7',
+  primaryBorder: '#BBDAD5',
+  primaryMuted: '#C7E4DF',
+  primaryForeground: '#FBF6EF',
+  accent: '#BE5A2E',
+  accentForeground: '#FBF6EF',
 
   // --- Backgrounds ---
-  background: '#F9FAFB',
-  backgroundOverlay: 'rgba(249,250,251,0.95)',
-  backgroundBlur: 'rgba(249,250,251,0.8)',
+  background: '#FBF6EF',
+  backgroundOverlay: 'rgba(251,246,239,0.95)',
+  backgroundBlur: 'rgba(251,246,239,0.8)',
 
   // --- Surfaces ---
   card: '#FFFFFF',
 
   // --- Foreground / Text ---
-  foreground: '#15181F',
-  mutedForeground: '#656970',
+  foreground: '#2B2419',
+  mutedForeground: '#7A6E5C',
 
   // --- Secondary ---
-  secondary: '#EEF0F3',
+  secondary: '#F3E9D8',
 
   // --- Borders ---
-  border: '#E3E5E7',
-  borderMuted: 'rgba(227,229,231,0.6)',
+  border: '#ECE1CE',
+  borderMuted: 'rgba(236,225,206,0.6)',
 
   // --- Status ---
-  success: '#2C965D',
-  warning: '#DA950B',
-  danger: '#CC3336',
-  info: '#2A94C7',
+  success: '#3E7A52',
+  warning: '#C9932E',
+  danger: '#B03B34',
+  info: '#4C7FA6',
 
 } as const;
 
+// Tint backgrounds for the dashboard stat tiles (TILE_PALETTE) — rgb()
+// twins of Colors.primary/info/warning/success above, since a React
+// Native style object can't do Tailwind's bg-primary/10 opacity trick.
+export const ColorsRgb = {
+  primary: '46,111,104',
+  info: '76,127,166',
+  warning: '201,147,46',
+  success: '62,122,82',
+} as const;
+
 export const FontFamily = {
-  heading: undefined,
-  subheading: undefined,
-  body: undefined,
-  caption: undefined,
-  label: undefined,
+  heading: 'Lora_600SemiBold',
+  subheading: 'Lora_500Medium',
+  body: 'NunitoSans_400Regular',
+  caption: 'NunitoSans_400Regular',
+  label: 'NunitoSans_700Bold',
 } as const;
 
 export const FontSize = {
@@ -74,31 +85,31 @@ export const Spacing = {
 
 export const BorderRadius = {
   sm: 6,
-  md: 10,
-  lg: 14,
-  xl: 20,
+  md: 9,
+  lg: 12,
+  xl: 16,
   full: 9999,
 } as const;
 
 export const Shadow = {
   card: {
-    shadowColor: '#15181F',
+    shadowColor: '#2B2419',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.06,
     shadowRadius: 3,
     elevation: 1,
   },
   cta: {
-    shadowColor: '#343996',
+    shadowColor: '#BE5A2E',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 6,
   },
   modal: {
-    shadowColor: '#15181F',
+    shadowColor: '#2B2419',
     shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.22,
     shadowRadius: 30,
     elevation: 12,
   },
