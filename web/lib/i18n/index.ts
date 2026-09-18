@@ -1,7 +1,7 @@
-import { en, type Dictionary } from './en';
-import { hi } from './hi';
-import { te } from './te';
-
+// Message content itself now lives in ../../messages/{en,hi,te}.json, loaded
+// by next-intl (see ../../i18n/request.ts) — this file only keeps the small
+// bits that aren't next-intl's concern: the locale type, display labels for
+// the language switcher, and the cookie used to persist the choice.
 export type Language = 'en' | 'hi' | 'te';
 
 export const LANGUAGE_LABELS: Record<Language, string> = {
@@ -10,29 +10,8 @@ export const LANGUAGE_LABELS: Record<Language, string> = {
   te: 'తెలుగు',
 };
 
-export const DICTIONARIES: Record<Language, Dictionary> = { en, hi, te };
-
 export const LANGUAGE_COOKIE = 'school-buddy-language';
-
-function readPath(obj: unknown, path: string): unknown {
-  return path
-    .split('.')
-    .reduce<unknown>((acc, part) => (acc && typeof acc === 'object' ? (acc as Record<string, unknown>)[part] : undefined), obj);
-}
-
-// Plain function, usable from both server and client code (the LanguageProvider
-// context wraps this for client components; server components call it directly).
-export function translate(language: Language, key: string, params?: Record<string, string>) {
-  const raw = readPath(DICTIONARIES[language], key) ?? readPath(DICTIONARIES.en, key) ?? key;
-  let text = typeof raw === 'string' ? raw : key;
-  if (params) {
-    for (const [param, value] of Object.entries(params)) text = text.replace(`{${param}}`, value);
-  }
-  return text;
-}
 
 export function isLanguage(value: string | undefined): value is Language {
   return value === 'en' || value === 'hi' || value === 'te';
 }
-
-export type { Dictionary };

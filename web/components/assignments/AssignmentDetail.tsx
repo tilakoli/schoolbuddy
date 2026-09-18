@@ -373,6 +373,31 @@ export function TeacherAssignmentView({
               {submission && submission.answers && 'text' in submission.answers && (
                 <p className="mt-3 whitespace-pre-wrap rounded-lg bg-background p-3 text-sm text-muted-foreground">{submission.answers.text}</p>
               )}
+
+              {submission && Array.isArray(submission.answers) && assignment.questions && (
+                <div className="mt-3 space-y-2 rounded-lg bg-background p-3">
+                  {assignment.questions.map((question, qi) => {
+                    const given = (submission.answers as { id: string; selected_index: number }[]).find((a) => a.id === question.id);
+                    const correctEntry = answerById.get(question.id);
+                    const isCorrect = given !== undefined && correctEntry !== undefined && given.selected_index === correctEntry.correct_index;
+                    return (
+                      <div key={question.id} className="text-sm">
+                        <p className="font-medium text-foreground">
+                          {qi + 1}. {question.prompt}
+                        </p>
+                        <p className={isCorrect ? 'text-success' : 'text-danger'}>
+                          {t('assignment.theirAnswer')}: {given !== undefined ? question.options[given.selected_index] : '—'}
+                        </p>
+                        {!isCorrect && correctEntry && (
+                          <p className="text-muted-foreground">
+                            {t('assignment.correctAnswer')}: {question.options[correctEntry.correct_index]}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}

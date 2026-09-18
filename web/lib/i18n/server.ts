@@ -1,14 +1,17 @@
-import { cookies } from 'next/headers';
-import { isLanguage, LANGUAGE_COOKIE, translate, type Language } from './index';
+import { getLocale, getTranslations } from 'next-intl/server';
+import type { Language } from './index';
 
+// Locale resolution (reading the cookie, defaulting to 'en') now lives in
+// ../../i18n/request.ts, the single source of truth next-intl itself reads
+// from — this just exposes it under the pre-existing name.
 export async function getServerLanguage(): Promise<Language> {
-  const store = await cookies();
-  const value = store.get(LANGUAGE_COOKIE)?.value;
-  return isLanguage(value) ? value : 'en';
+  return (await getLocale()) as Language;
 }
 
 // For a server component: `const t = await getServerT();` then `t('nav.dashboard')`.
+// Kept as the stable call site API — internally this is next-intl's own
+// getTranslations(), configured in ../../i18n/request.ts.
 export async function getServerT() {
-  const language = await getServerLanguage();
-  return (key: string, params?: Record<string, string>) => translate(language, key, params);
+  const t = await getTranslations();
+  return (key: string, params?: Record<string, string>) => t(key, params);
 }

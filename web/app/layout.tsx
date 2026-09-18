@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import { Analytics } from "@vercel/analytics/next";
 import { Lora, Nunito_Sans } from "next/font/google";
 import "./globals.css";
-import { LanguageProvider } from "@/components/LanguageProvider";
 import { APP_CONFIG } from "@/constants/config";
-import { getServerLanguage } from "@/lib/i18n/server";
 
 const heading = Lora({
   variable: "--font-heading",
@@ -24,15 +24,18 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const language = await getServerLanguage();
+  const locale = await getLocale();
+  const messages = await getMessages();
 
   return (
     <html
-      lang={language}
+      lang={locale}
       className={`${heading.variable} ${body.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans" suppressHydrationWarning>
-        <LanguageProvider initialLanguage={language}>{children}</LanguageProvider>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          {children}
+        </NextIntlClientProvider>
         <Analytics />
       </body>
     </html>
