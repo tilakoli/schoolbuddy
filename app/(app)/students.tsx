@@ -4,6 +4,7 @@ import Screen from '@/components/shared/Screen';
 import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
+import { useLanguageStore } from '@/stores/languageStore';
 
 interface RosterRow {
   key: string;
@@ -13,6 +14,7 @@ interface RosterRow {
 
 export default function StudentsScreen() {
   const userId = useAuthStore((state) => state.user?.id);
+  const { t } = useLanguageStore();
   const [rows, setRows] = useState<RosterRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -58,9 +60,9 @@ export default function StudentsScreen() {
 
   return (
     <Screen scroll>
-      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: 26 }}>Students</Text>
+      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: 26 }}>{t('students.title')}</Text>
       <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 4, marginBottom: Spacing.xl }}>
-        Students across your classes.
+        {t('students.subtitleAcrossClasses')}
       </Text>
 
       {loading ? (
@@ -69,7 +71,7 @@ export default function StudentsScreen() {
         <>
           {rows.length === 0 && (
             <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>
-              No students enrolled yet — add them from a class&apos;s roster.
+              {t('students.noStudentsYet')}
             </Text>
           )}
           {rows.map((row) => (

@@ -3,6 +3,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import DashboardBanner, { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
 import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+import { useLanguageStore } from '@/stores/languageStore';
 
 interface Counts {
   staff: number;
@@ -14,6 +15,7 @@ interface Counts {
 }
 
 export default function AdminDashboard({ name }: { name: string }) {
+  const { t } = useLanguageStore();
   const [counts, setCounts] = useState<Counts | null>(null);
 
   useEffect(() => {
@@ -43,19 +45,19 @@ export default function AdminDashboard({ name }: { name: string }) {
   }, []);
 
   const stats = [
-    { label: 'Teachers', value: counts ? String(counts.teachers) : '—' },
-    { label: 'Students', value: counts ? String(counts.students) : '—' },
-    { label: 'Staff (admin + VP)', value: counts ? String(counts.staff) : '—' },
+    { label: t('nav.teachers'), value: counts ? String(counts.teachers) : '—' },
+    { label: t('dashboard.statStudents'), value: counts ? String(counts.students) : '—' },
+    { label: t('dashboard.statStaff'), value: counts ? String(counts.staff) : '—' },
     {
-      label: 'Total accounts',
+      label: t('dashboard.statTotalAccounts'),
       value: counts ? String(counts.staff + counts.teachers + counts.students) : '—',
     },
   ];
 
   const schoolStats = [
-    { label: 'Classes', value: counts ? String(counts.classes) : '—' },
-    { label: 'Subjects', value: counts ? String(counts.subjects) : '—' },
-    { label: 'Assignments', value: counts ? String(counts.assignments) : '—' },
+    { label: t('dashboard.statClasses'), value: counts ? String(counts.classes) : '—' },
+    { label: t('dashboard.statSubjects'), value: counts ? String(counts.subjects) : '—' },
+    { label: t('nav.assignments'), value: counts ? String(counts.assignments) : '—' },
   ];
 
   const total = counts ? counts.staff + counts.teachers + counts.students : null;
@@ -63,9 +65,9 @@ export default function AdminDashboard({ name }: { name: string }) {
   return (
     <>
       <DashboardBanner
-        eyebrow="Welcome back"
+        eyebrow={t('dashboard.welcomeBack')}
         name={name}
-        summary={total !== null ? `Overseeing ${total} accounts across the school.` : undefined}
+        summary={total !== null ? t('dashboard.overseeingSummary', { count: String(total) }) : undefined}
       />
 
       <View
@@ -101,7 +103,7 @@ export default function AdminDashboard({ name }: { name: string }) {
       </View>
 
       <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg, marginTop: Spacing.xl, marginBottom: Spacing.md }}>
-        School overview
+        {t('dashboard.schoolOverview')}
       </Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm }}>
         {schoolStats.map((stat, i) => {
@@ -129,7 +131,7 @@ export default function AdminDashboard({ name }: { name: string }) {
       </View>
 
       <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg, marginTop: Spacing.xl, marginBottom: Spacing.md }}>
-        User management
+        {t('dashboard.userManagement')}
       </Text>
       <View
         style={{
@@ -142,10 +144,10 @@ export default function AdminDashboard({ name }: { name: string }) {
         }}
       >
         <Text style={{ color: Colors.foreground, fontSize: FontSize.md, fontWeight: '600' }}>
-          Create and manage teacher &amp; student accounts
+          {t('dashboard.mobileManagementTitle')}
         </Text>
         <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 4 }}>
-          Manage teacher and student accounts from the web app.
+          {t('dashboard.mobileManagementDesc')}
         </Text>
       </View>
 

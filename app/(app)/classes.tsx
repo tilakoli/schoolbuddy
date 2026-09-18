@@ -6,6 +6,7 @@ import { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
 import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
+import { useLanguageStore } from '@/stores/languageStore';
 
 interface ClassGroupRow {
   id: string;
@@ -17,6 +18,7 @@ interface ClassGroupRow {
 
 export default function ClassesScreen() {
   const userId = useAuthStore((state) => state.user?.id);
+  const { t } = useLanguageStore();
   const [classes, setClasses] = useState<ClassGroupRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -69,14 +71,14 @@ export default function ClassesScreen() {
 
   return (
     <Screen scroll>
-      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: 26 }}>Classes</Text>
-      <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 4 }}>Your subject, across your classes.</Text>
+      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: 26 }}>{t('nav.classes')}</Text>
+      <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 4 }}>{t('classes.yourSubjectAcrossClasses')}</Text>
 
       {loading ? (
         <ActivityIndicator color={Colors.primary} style={{ marginTop: Spacing.xl }} />
       ) : (
         <View style={{ marginTop: Spacing.lg }}>
-          {classes.length === 0 && <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>No classes yet.</Text>}
+          {classes.length === 0 && <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>{t('classes.noClassesYetShort')}</Text>}
           {classes.map((classItem, i) => {
             const tile = TILE_PALETTE[i % TILE_PALETTE.length];
             return (
@@ -116,7 +118,9 @@ export default function ClassesScreen() {
                     </Text>
                   </View>
                 </View>
-                <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>{classItem.studentCount} students</Text>
+                <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>
+                  {classItem.studentCount} {t('dashboard.statStudents').toLowerCase()}
+                </Text>
               </TouchableOpacity>
             );
           })}

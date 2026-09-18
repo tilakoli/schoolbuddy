@@ -5,6 +5,7 @@ import Button from '@/components/shared/Button';
 import Screen from '@/components/shared/Screen';
 import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+import { useLanguageStore } from '@/stores/languageStore';
 
 interface ClassRow {
   id: string;
@@ -35,6 +36,7 @@ const DIFFICULTIES = ['easy', 'medium', 'expert'] as const;
 
 export default function SubjectOfferingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { t } = useLanguageStore();
   const [classRow, setClassRow] = useState<ClassRow | null>(null);
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
   const [roster, setRoster] = useState<RosterStudent[]>([]);
@@ -81,22 +83,22 @@ export default function SubjectOfferingScreen() {
   return (
     <Screen scroll>
       <TouchableOpacity onPress={() => router.back()}>
-        <Text style={{ color: Colors.primary, fontSize: FontSize.md }}>← Classes</Text>
+        <Text style={{ color: Colors.primary, fontSize: FontSize.md }}>{t('classes.backToClasses')}</Text>
       </TouchableOpacity>
       <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: 24, marginTop: Spacing.md }}>
-        {classRow?.subjects?.name ?? 'Subject'}
+        {classRow?.subjects?.name ?? t('assignment.subjectFallback')}
       </Text>
       <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 4 }}>
-        {[classRow?.class_groups?.name, classRow?.period, classRow?.room].filter(Boolean).join(' · ') || 'No details yet'}
+        {[classRow?.class_groups?.name, classRow?.period, classRow?.room].filter(Boolean).join(' · ') || t('classes.noDetailsYet')}
       </Text>
 
       <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg, marginTop: Spacing.xl, marginBottom: Spacing.md }}>
-        Students
+        {t('classes.tabStudents')}
       </Text>
       <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.xs, marginBottom: Spacing.md }}>
-        The class roster is managed by admin — you can see who's enrolled here.
+        {t('classes.rosterManagedByAdmin')}
       </Text>
-      {roster.length === 0 && <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>No students enrolled yet.</Text>}
+      {roster.length === 0 && <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>{t('roster.noStudentsEnrolledYet')}</Text>}
       {roster.map((student) => (
         <View
           key={student.id}
@@ -114,9 +116,9 @@ export default function SubjectOfferingScreen() {
       ))}
 
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.xl, marginBottom: Spacing.md }}>
-        <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg }}>Assignments</Text>
+        <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg }}>{t('nav.assignments')}</Text>
         <TouchableOpacity onPress={() => setShowAssignmentForm((v) => !v)}>
-          <Text style={{ color: Colors.accent, fontSize: FontSize.sm, fontWeight: '600' }}>New assignment</Text>
+          <Text style={{ color: Colors.accent, fontSize: FontSize.sm, fontWeight: '600' }}>{t('assignment.newAssignment')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -131,7 +133,7 @@ export default function SubjectOfferingScreen() {
       )}
 
       {assignments.length === 0 && (
-        <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>No assignments yet.</Text>
+        <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>{t('students.noAssignmentsYet')}</Text>
       )}
       {assignments.map((assignment) => (
         <View
@@ -147,8 +149,8 @@ export default function SubjectOfferingScreen() {
         >
           <Text style={{ color: Colors.foreground, fontSize: FontSize.sm, fontWeight: '600' }}>{assignment.title}</Text>
           <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.xs, marginTop: 2 }}>
-            {assignment.assessment_type} · {assignment.difficulty}
-            {assignment.due_at ? ` · Due ${new Date(assignment.due_at).toLocaleDateString()}` : ''}
+            {t(`assignment.${assignment.assessment_type}`)} · {t(`assignment.${assignment.difficulty}`)}
+            {assignment.due_at ? ` · ${t('assignment.dueOn', { date: new Date(assignment.due_at).toLocaleDateString() })}` : ''}
           </Text>
         </View>
       ))}
@@ -157,6 +159,7 @@ export default function SubjectOfferingScreen() {
 }
 
 function NewAssignmentInlineForm({ classId, onCreated }: { classId: string; onCreated: (a: AssignmentRow) => void }) {
+  const { t } = useLanguageStore();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [assessmentType, setAssessmentType] = useState<(typeof ASSESSMENT_TYPES)[number]>('homework');
@@ -196,14 +199,14 @@ function NewAssignmentInlineForm({ classId, onCreated }: { classId: string; onCr
       }}
     >
       <TextInput
-        placeholder="Title"
+        placeholder={t('form.title')}
         placeholderTextColor={Colors.mutedForeground}
         value={title}
         onChangeText={setTitle}
         style={{ borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, padding: 10, fontSize: FontSize.sm, color: Colors.foreground }}
       />
       <TextInput
-        placeholder="Description"
+        placeholder={t('form.description')}
         placeholderTextColor={Colors.mutedForeground}
         value={description}
         onChangeText={setDescription}
@@ -222,8 +225,8 @@ function NewAssignmentInlineForm({ classId, onCreated }: { classId: string; onCr
               backgroundColor: assessmentType === type ? Colors.primaryLight : Colors.secondary,
             }}
           >
-            <Text style={{ fontSize: FontSize.xs, fontWeight: '600', color: assessmentType === type ? Colors.primary : Colors.mutedForeground, textTransform: 'capitalize' }}>
-              {type}
+            <Text style={{ fontSize: FontSize.xs, fontWeight: '600', color: assessmentType === type ? Colors.primary : Colors.mutedForeground }}>
+              {t(`assignment.${type}`)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -240,20 +243,20 @@ function NewAssignmentInlineForm({ classId, onCreated }: { classId: string; onCr
               backgroundColor: difficulty === level ? Colors.primaryLight : Colors.secondary,
             }}
           >
-            <Text style={{ fontSize: FontSize.xs, fontWeight: '600', color: difficulty === level ? Colors.primary : Colors.mutedForeground, textTransform: 'capitalize' }}>
-              {level}
+            <Text style={{ fontSize: FontSize.xs, fontWeight: '600', color: difficulty === level ? Colors.primary : Colors.mutedForeground }}>
+              {t(`assignment.${level}`)}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
       <TextInput
-        placeholder="Due date (e.g. 2026-10-30 18:30)"
+        placeholder={t('assignment.dueDatePlaceholder')}
         placeholderTextColor={Colors.mutedForeground}
         value={dueAt}
         onChangeText={setDueAt}
         style={{ borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, padding: 10, fontSize: FontSize.sm, color: Colors.foreground }}
       />
-      <Button variant="accent" label={loading ? 'Saving…' : 'Save assignment'} onPress={submit} loading={loading} disabled={!title.trim()} />
+      <Button variant="accent" label={loading ? t('form.saving') : t('assignment.saveAssignment')} onPress={submit} loading={loading} disabled={!title.trim()} />
     </View>
   );
 }

@@ -125,7 +125,17 @@ A subject has exactly one teacher, school-wide (`supabase/migrations/0012_subjec
 
 `app/(app)/ai-chat.tsx` — a real bottom tab now (previously a floating bubble), on both platforms, every role. Plain Gemini conversation via `POST /api/chat` on the web app (mobile has no server of its own, so it calls the web app's route at `EXPO_PUBLIC_API_URL`, authenticating with its own Supabase access token as a Bearer header since it can't share the web app's session cookie). Set `GEMINI_API_KEY` in `web/.env.local` to enable it — see `web/README.md`'s AI Chat section.
 
+Every assistant reply has a **Listen** button (`expo-speech`, native device TTS — no API key, no network round-trip) that reads it aloud in the current language. It's a client-side layer over the plain text reply; Gemini isn't involved in the audio at all, and there's no live voice conversation (that's Gemini's separate Live API — a different integration, not implemented).
+
+Replies render as Markdown (`react-native-markdown-display`, since Gemini often formats longer answers with headings/bold/lists) instead of showing raw `**`/`#`/`---` as literal text. Before a reply is spoken, `lib/markdown.ts`'s `stripMarkdownForSpeech()` strips that same formatting first, so **Listen** doesn't read out symbols like "asterisk asterisk" — `/api/chat`'s system prompt also nudges Gemini toward lighter formatting suited to a chat bubble in the first place.
+
+Conversations are persisted server-side now (`supabase/migrations/0019_ai_chat_history.sql`) — a **New chat** button, a **History** list (tap to reopen, swipe-adjacent delete icon per row, via a bottom sheet modal here since there's less screen width than web), and delete, all RLS-scoped to the signed-in user. `POST /api/chat` (web's route, called by both platforms) writes each turn's user message + reply to the DB as a side effect, creating a session on a new chat's first message; listing/loading/deleting a session happens as a plain RLS-protected Supabase read/delete directly from the app, same as web.
+
 **Not built yet**: this chat has no access to the class materials teachers upload from each subject's Materials section (web) — no retrieval/RAG, no guardrails scoping answers to the school's own content.
+
+## Multi-language support
+
+English, Hindi, and Telugu, UI chrome only — nav tabs, dashboards, auth screens, Settings, AI Chat, and now every tab screen (Classes, Students, Subjects, Assignments, and the subject-offering detail screen with its inline roster/assignment form) — `constants/i18n/` (kept in sync with `web/lib/i18n/` — same dictionary shape, copied over any time a key changes), `stores/languageStore.ts` (Zustand + `AsyncStorage`, mirrors the pattern in `stores/authStore.ts`). Teacher-authored content (names, subjects, materials) and AI-generated output are never dictionary-translated — they're real data, not app chrome; AI replies instead get a language directive passed to Gemini directly (see AI Chat section in `web/README.md`). Switched from a picker in Settings; persists across app restarts.
 
 ### Seeding accounts
 

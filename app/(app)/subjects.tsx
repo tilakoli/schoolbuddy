@@ -3,6 +3,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import Screen from '@/components/shared/Screen';
 import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+import { useLanguageStore } from '@/stores/languageStore';
 
 interface SubjectRow {
   id: string;
@@ -13,6 +14,7 @@ interface SubjectRow {
 }
 
 export default function SubjectsScreen() {
+  const { t } = useLanguageStore();
   const [subjects, setSubjects] = useState<SubjectRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -47,9 +49,9 @@ export default function SubjectsScreen() {
 
   return (
     <Screen scroll>
-      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: 26 }}>Subjects</Text>
+      <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: 26 }}>{t('nav.subjects')}</Text>
       <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 4, marginBottom: Spacing.xl }}>
-        Your enrolled subjects this term.
+        {t('subjects.subtitle')}
       </Text>
 
       {loading ? (
@@ -57,7 +59,7 @@ export default function SubjectsScreen() {
       ) : (
         <>
           {subjects.length === 0 && (
-            <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>You&apos;re not enrolled in any classes yet.</Text>
+            <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>{t('dashboard.noClassesYetStudent')}</Text>
           )}
           {subjects.map((subject) => (
             <View

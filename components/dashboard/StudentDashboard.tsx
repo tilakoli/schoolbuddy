@@ -3,6 +3,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import DashboardBanner, { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
 import { Colors, FontFamily, FontSize, Spacing, BorderRadius } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+import { useLanguageStore } from '@/stores/languageStore';
 
 interface ClassRow {
   id: string;
@@ -28,6 +29,7 @@ function dueStatus(dueAt: string | null): { label: string; color: string } {
 }
 
 export default function StudentDashboard({ name }: { name: string }) {
+  const { t } = useLanguageStore();
   const [classes, setClasses] = useState<ClassRow[] | null>(null);
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
 
@@ -75,21 +77,21 @@ export default function StudentDashboard({ name }: { name: string }) {
   const overdueCount = assignments.filter((a) => a.due_at && new Date(a.due_at).getTime() < Date.now()).length;
 
   const stats = [
-    { label: 'Enrolled classes', value: String(classes.length) },
-    { label: 'Due this week', value: String(dueSoonCount) },
-    { label: 'Overdue', value: String(overdueCount) },
-    { label: 'Total assignments', value: String(assignments.length) },
+    { label: t('dashboard.statEnrolledClasses'), value: String(classes.length) },
+    { label: t('dashboard.statDueThisWeek'), value: String(dueSoonCount) },
+    { label: t('dashboard.statOverdue'), value: String(overdueCount) },
+    { label: t('dashboard.statTotalAssignments'), value: String(assignments.length) },
   ];
 
   return (
     <>
       <DashboardBanner
-        eyebrow="Welcome back"
+        eyebrow={t('dashboard.welcomeBack')}
         name={name}
         summary={
           classes.length > 0
-            ? `Enrolled in ${classes.length} class${classes.length === 1 ? '' : 'es'} this term.`
-            : 'Your enrolled classes will show up here.'
+            ? t('dashboard.enrolledSummary', { count: String(classes.length) })
+            : t('dashboard.enrolledClassesWillShowUp')
         }
       />
 
@@ -115,10 +117,10 @@ export default function StudentDashboard({ name }: { name: string }) {
       </View>
 
       <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg, marginTop: Spacing.xl, marginBottom: Spacing.md }}>
-        My classes
+        {t('dashboard.myClasses')}
       </Text>
       {classes.length === 0 && (
-        <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>You&apos;re not enrolled in any classes yet.</Text>
+        <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>{t('dashboard.noClassesYetStudent')}</Text>
       )}
       {classes.map((classItem, i) => {
         const tile = TILE_PALETTE[i % TILE_PALETTE.length];
@@ -167,9 +169,9 @@ export default function StudentDashboard({ name }: { name: string }) {
       })}
 
       <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg, marginTop: Spacing.xl, marginBottom: Spacing.md }}>
-        Upcoming assignments
+        {t('dashboard.upcomingAssignments')}
       </Text>
-      {assignments.length === 0 && <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>No assignments yet.</Text>}
+      {assignments.length === 0 && <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>{t('dashboard.noAssignmentsYet')}</Text>}
       {assignments.slice(0, 4).map((assignment) => {
         const status = dueStatus(assignment.due_at);
         return (

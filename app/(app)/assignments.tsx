@@ -5,6 +5,7 @@ import Screen from '@/components/shared/Screen';
 import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/stores/authStore';
+import { useLanguageStore } from '@/stores/languageStore';
 
 interface AssignmentRow {
   id: string;
@@ -19,16 +20,17 @@ interface AssignmentRow {
 const ASSESSMENT_TYPES = ['homework', 'test', 'discussion', 'revision'] as const;
 const DIFFICULTIES = ['easy', 'medium', 'expert'] as const;
 
-function dueStatus(dueAt: string | null): { label: string; color: string } {
-  if (!dueAt) return { label: 'No due date', color: Colors.info };
+function dueStatus(dueAt: string | null): { labelKey: string | null; dateLabel: string | null; color: string } {
+  if (!dueAt) return { labelKey: 'assignment.noDueDate', dateLabel: null, color: Colors.info };
   const diffDays = (new Date(dueAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
-  if (diffDays < 0) return { label: 'Overdue', color: Colors.danger };
-  if (diffDays < 2) return { label: 'Due soon', color: Colors.warning };
-  return { label: new Date(dueAt).toLocaleDateString(), color: Colors.info };
+  if (diffDays < 0) return { labelKey: 'assignment.overdue', dateLabel: null, color: Colors.danger };
+  if (diffDays < 2) return { labelKey: 'assignment.dueSoon', dateLabel: null, color: Colors.warning };
+  return { labelKey: null, dateLabel: new Date(dueAt).toLocaleDateString(), color: Colors.info };
 }
 
 export default function AssignmentsScreen() {
   const { user, profile } = useAuthStore();
+  const { t } = useLanguageStore();
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
   const [classOptions, setClassOptions] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,14 +90,14 @@ export default function AssignmentsScreen() {
     <Screen scroll>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         <View>
-          <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: 26 }}>Assignments</Text>
+          <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: 26 }}>{t('nav.assignments')}</Text>
           <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 4 }}>
-            {isTeacher ? 'Across all your classes.' : 'Across all your subjects.'}
+            {isTeacher ? t('assignment.acrossAllClasses') : t('assignment.acrossAllSubjects')}
           </Text>
         </View>
         {isTeacher && classOptions.length > 0 && (
           <TouchableOpacity onPress={() => setShowCreate((v) => !v)}>
-            <Text style={{ color: Colors.accent, fontSize: FontSize.sm, fontWeight: '600' }}>New</Text>
+            <Text style={{ color: Colors.accent, fontSize: FontSize.sm, fontWeight: '600' }}>{t('assignment.newShort')}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -118,7 +120,7 @@ export default function AssignmentsScreen() {
       ) : (
         <View style={{ marginTop: Spacing.lg }}>
           {assignments.length === 0 && (
-            <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>No assignments yet.</Text>
+            <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>{t('students.noAssignmentsYet')}</Text>
           )}
           {assignments.map((assignment) => {
             const status = dueStatus(assignment.due_at);
@@ -141,7 +143,9 @@ export default function AssignmentsScreen() {
                   <Text style={{ color: Colors.foreground, fontSize: FontSize.md, fontWeight: '600' }}>{assignment.title}</Text>
                   <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 3 }}>{assignment.className}</Text>
                 </View>
-                <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>{status.label}</Text>
+                <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>
+                  {status.labelKey ? t(status.labelKey) : status.dateLabel}
+                </Text>
               </View>
             );
           })}
@@ -167,6 +171,7 @@ function NewAssignmentForm({
   classOptions: { id: string; name: string }[];
   onCreated: (a: NewAssignmentPayload) => void;
 }) {
+  const { t } = useLanguageStore();
   const [classId, setClassId] = useState(classOptions[0]?.id ?? '');
   const [title, setTitle] = useState('');
   const [assessmentType, setAssessmentType] = useState<(typeof ASSESSMENT_TYPES)[number]>('homework');
@@ -219,7 +224,7 @@ function NewAssignmentForm({
         </View>
       )}
       <TextInput
-        placeholder="Title"
+        placeholder={t('form.title')}
         placeholderTextColor={Colors.mutedForeground}
         value={title}
         onChangeText={setTitle}
@@ -232,8 +237,8 @@ function NewAssignmentForm({
             onPress={() => setAssessmentType(type)}
             style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: BorderRadius.full, backgroundColor: assessmentType === type ? Colors.primaryLight : Colors.secondary }}
           >
-            <Text style={{ fontSize: FontSize.xs, fontWeight: '600', color: assessmentType === type ? Colors.primary : Colors.mutedForeground, textTransform: 'capitalize' }}>
-              {type}
+            <Text style={{ fontSize: FontSize.xs, fontWeight: '600', color: assessmentType === type ? Colors.primary : Colors.mutedForeground }}>
+              {t(`assignment.${type}`)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -245,20 +250,20 @@ function NewAssignmentForm({
             onPress={() => setDifficulty(level)}
             style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: BorderRadius.full, backgroundColor: difficulty === level ? Colors.primaryLight : Colors.secondary }}
           >
-            <Text style={{ fontSize: FontSize.xs, fontWeight: '600', color: difficulty === level ? Colors.primary : Colors.mutedForeground, textTransform: 'capitalize' }}>
-              {level}
+            <Text style={{ fontSize: FontSize.xs, fontWeight: '600', color: difficulty === level ? Colors.primary : Colors.mutedForeground }}>
+              {t(`assignment.${level}`)}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
       <TextInput
-        placeholder="Due date (e.g. 2026-10-30 18:30)"
+        placeholder={t('assignment.dueDatePlaceholder')}
         placeholderTextColor={Colors.mutedForeground}
         value={dueAt}
         onChangeText={setDueAt}
         style={{ borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, padding: 10, fontSize: FontSize.sm, color: Colors.foreground }}
       />
-      <Button variant="accent" label={loading ? 'Saving…' : 'Save assignment'} onPress={submit} loading={loading} disabled={!title.trim()} />
+      <Button variant="accent" label={loading ? t('form.saving') : t('assignment.saveAssignment')} onPress={submit} loading={loading} disabled={!title.trim()} />
     </View>
   );
 }

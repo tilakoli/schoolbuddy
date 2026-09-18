@@ -2,6 +2,7 @@ import { Redirect, Tabs } from 'expo-router';
 import { ActivityIndicator, Text, View } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { useAuthStore } from '@/stores/authStore';
+import { useLanguageStore } from '@/stores/languageStore';
 
 function TabIcon({ glyph, color }: { glyph: string; color: string }) {
   return <Text style={{ fontSize: 18, color }}>{glyph}</Text>;
@@ -9,6 +10,7 @@ function TabIcon({ glyph, color }: { glyph: string; color: string }) {
 
 export default function ProtectedLayout() {
   const { session, initialized, profile } = useAuthStore();
+  const { t } = useLanguageStore();
 
   if (!initialized) {
     return (
@@ -32,16 +34,16 @@ export default function ProtectedLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{ title: 'Dashboard', tabBarIcon: ({ color }) => <TabIcon glyph="🏠" color={color} /> }}
+        options={{ title: t('nav.dashboard'), tabBarIcon: ({ color }) => <TabIcon glyph="🏠" color={color} /> }}
       />
       <Tabs.Screen
         name="ai-chat"
-        options={{ title: 'AI Chat', tabBarIcon: ({ color }) => <TabIcon glyph="💬" color={color} /> }}
+        options={{ title: t('nav.aiChat'), tabBarIcon: ({ color }) => <TabIcon glyph="💬" color={color} /> }}
       />
       <Tabs.Screen
         name="classes"
         options={{
-          title: 'Classes',
+          title: t('nav.classes'),
           href: role === 'teacher' ? undefined : null,
           tabBarIcon: ({ color }) => <TabIcon glyph="📚" color={color} />,
         }}
@@ -49,7 +51,7 @@ export default function ProtectedLayout() {
       <Tabs.Screen
         name="students"
         options={{
-          title: 'Students',
+          title: t('nav.students'),
           href: role === 'teacher' ? undefined : null,
           tabBarIcon: ({ color }) => <TabIcon glyph="🧑‍🎓" color={color} />,
         }}
@@ -57,7 +59,7 @@ export default function ProtectedLayout() {
       <Tabs.Screen
         name="subjects"
         options={{
-          title: 'Subjects',
+          title: t('nav.subjects'),
           href: role === 'student' ? undefined : null,
           tabBarIcon: ({ color }) => <TabIcon glyph="📖" color={color} />,
         }}
@@ -65,14 +67,14 @@ export default function ProtectedLayout() {
       <Tabs.Screen
         name="assignments"
         options={{
-          title: 'Assignments',
+          title: t('nav.assignments'),
           href: role === 'teacher' || role === 'student' ? undefined : null,
           tabBarIcon: ({ color }) => <TabIcon glyph="📝" color={color} />,
         }}
       />
       <Tabs.Screen
         name="settings"
-        options={{ title: 'Settings', tabBarIcon: ({ color }) => <TabIcon glyph="⚙" color={color} /> }}
+        options={{ title: t('nav.settings'), tabBarIcon: ({ color }) => <TabIcon glyph="⚙" color={color} /> }}
       />
     </Tabs>
   );

@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import DashboardBanner, { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
 import { Colors, FontFamily, FontSize, Spacing, BorderRadius } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+import { useLanguageStore } from '@/stores/languageStore';
 
 interface ClassGroupRow {
   id: string;
@@ -29,6 +30,7 @@ function dueStatus(dueAt: string | null): { label: string; color: string } {
 }
 
 export default function TeacherDashboard({ name, userId }: { name: string; userId: string }) {
+  const { t } = useLanguageStore();
   const [classes, setClasses] = useState<ClassGroupRow[] | null>(null);
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
   const [subjectName, setSubjectName] = useState<string | null>(null);
@@ -107,22 +109,22 @@ export default function TeacherDashboard({ name, userId }: { name: string; userI
   const dueSoonCount = assignments.filter((a) => a.due_at && (new Date(a.due_at).getTime() - Date.now()) / 86400000 < 7 && (new Date(a.due_at).getTime() - Date.now()) >= 0).length;
 
   const stats = [
-    { label: 'Classes', value: String(classes.length) },
-    { label: 'Students', value: String(studentCount) },
-    { label: 'Due this week', value: String(dueSoonCount) },
-    { label: 'Total assignments', value: String(assignments.length) },
+    { label: t('dashboard.statClasses'), value: String(classes.length) },
+    { label: t('dashboard.statStudents'), value: String(studentCount) },
+    { label: t('dashboard.statDueThisWeek'), value: String(dueSoonCount) },
+    { label: t('dashboard.statTotalAssignments'), value: String(assignments.length) },
   ];
 
   return (
     <>
       <DashboardBanner
-        eyebrow="Welcome back"
+        eyebrow={t('dashboard.welcomeBack')}
         name={name}
-        subtitle={subjectName ? `${subjectName} teacher` : undefined}
+        subtitle={subjectName ? t('dashboard.subjectTeacherSuffix', { subject: subjectName }) : undefined}
         summary={
           classes.length > 0
-            ? `Teaching ${studentCount} student${studentCount === 1 ? '' : 's'} across ${classes.length} class${classes.length === 1 ? '' : 'es'}.`
-            : 'Your classes will show up here once admin assigns your subject to one.'
+            ? t('dashboard.teachingSummary', { students: String(studentCount), classes: String(classes.length) })
+            : t('dashboard.classesWillShowUp')
         }
       />
 
@@ -148,10 +150,10 @@ export default function TeacherDashboard({ name, userId }: { name: string; userI
       </View>
 
       <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg, marginTop: Spacing.xl, marginBottom: Spacing.md }}>
-        Your classes
+        {t('dashboard.yourClasses')}
       </Text>
       {classes.length === 0 && (
-        <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>No classes yet — admin will assign your subject to one.</Text>
+        <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>{t('dashboard.noClassesYetTeacher')}</Text>
       )}
       {classes.map((classItem, i) => {
         const tile = TILE_PALETTE[i % TILE_PALETTE.length];
@@ -198,9 +200,9 @@ export default function TeacherDashboard({ name, userId }: { name: string; userI
       })}
 
       <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: FontSize.lg, marginTop: Spacing.xl, marginBottom: Spacing.md }}>
-        Upcoming assignments
+        {t('dashboard.upcomingAssignments')}
       </Text>
-      {assignments.length === 0 && <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>No assignments yet.</Text>}
+      {assignments.length === 0 && <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>{t('dashboard.noAssignmentsYet')}</Text>}
       {assignments.slice(0, 4).map((assignment) => {
         const status = dueStatus(assignment.due_at);
         return (

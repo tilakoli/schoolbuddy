@@ -5,11 +5,14 @@ import AuthScreen from '@/components/auth/AuthScreen';
 import Button from '@/components/shared/Button';
 import ConfigNotice from '@/components/shared/ConfigNotice';
 import Input from '@/components/shared/Input';
+import { APP_CONFIG } from '@/constants/config';
 import { Colors, FontSize } from '@/constants/theme';
 import { getErrorMessage } from '@/lib/errors';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { useLanguageStore } from '@/stores/languageStore';
 
 export default function LoginScreen() {
+  const { t } = useLanguageStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -36,13 +39,13 @@ export default function LoginScreen() {
 
   return (
     <AuthScreen
-      eyebrow="WELCOME BACK"
-      title="Sign in to School Buddy."
-      description="Use the email and password your school administrator gave you."
+      eyebrow={t('auth.welcomeBackEyebrow')}
+      title={t('auth.signInTitle', { name: APP_CONFIG.name })}
+      description={t('auth.signInSubtitle')}
     >
       {!isSupabaseConfigured && <ConfigNotice />}
       <Input
-        label="Email"
+        label={t('auth.email')}
         placeholder="you@example.com"
         keyboardType="email-address"
         autoCapitalize="none"
@@ -51,7 +54,7 @@ export default function LoginScreen() {
         onChangeText={setEmail}
       />
       <Input
-        label="Password"
+        label={t('auth.password')}
         placeholder="Enter your password"
         secureTextEntry
         autoComplete="current-password"
@@ -63,10 +66,10 @@ export default function LoginScreen() {
         onPress={() => router.push('/auth/forgot-password')}
         style={{ alignSelf: 'flex-end', marginBottom: 20 }}
       >
-        <Text style={{ color: Colors.primary, fontSize: FontSize.sm }}>Forgot password?</Text>
+        <Text style={{ color: Colors.primary, fontSize: FontSize.sm }}>{t('auth.forgotPassword')}</Text>
       </TouchableOpacity>
       <Button
-        label="Sign in"
+        label={loading ? t('auth.signingIn') : t('auth.signIn')}
         onPress={handleLogin}
         variant="accent"
         loading={loading}

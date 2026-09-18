@@ -8,8 +8,10 @@ import Input from '@/components/shared/Input';
 import { Colors, FontSize } from '@/constants/theme';
 import { getErrorMessage } from '@/lib/errors';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import { useLanguageStore } from '@/stores/languageStore';
 
 export default function ForgotPasswordScreen() {
+  const { t } = useLanguageStore();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -23,7 +25,7 @@ export default function ForgotPasswordScreen() {
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim());
       if (resetError) throw resetError;
-      setMessage('Password reset instructions have been sent if an account exists for that email.');
+      setMessage(t('auth.resetSuccessMessage'));
     } catch (cause) {
       setError(getErrorMessage(cause, 'Unable to send reset instructions.'));
     } finally {
@@ -33,20 +35,20 @@ export default function ForgotPasswordScreen() {
 
   return (
     <AuthScreen
-      eyebrow="ACCOUNT RECOVERY"
-      title="Reset your password."
-      description="Enter your email and we’ll send you recovery instructions."
+      eyebrow={t('auth.accountRecoveryEyebrow')}
+      title={t('auth.resetTitle')}
+      description={t('auth.resetSubtitle')}
       footer={
         <TouchableOpacity onPress={() => router.back()} style={{ alignItems: 'center' }}>
           <Text style={{ color: Colors.primary, fontSize: FontSize.sm, fontWeight: '600' }}>
-            Back to sign in
+            {t('auth.backToSignIn')}
           </Text>
         </TouchableOpacity>
       }
     >
       {!isSupabaseConfigured && <ConfigNotice />}
       <Input
-        label="Email"
+        label={t('auth.email')}
         placeholder="you@example.com"
         keyboardType="email-address"
         autoCapitalize="none"
@@ -61,7 +63,7 @@ export default function ForgotPasswordScreen() {
         </Text>
       ) : null}
       <Button
-        label="Send reset instructions"
+        label={loading ? t('auth.sending') : t('auth.sendReset')}
         onPress={handleReset}
         variant="accent"
         loading={loading}

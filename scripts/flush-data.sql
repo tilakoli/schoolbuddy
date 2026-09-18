@@ -28,6 +28,7 @@ begin
   if to_regclass('public.subjects') is not null then delete from public.subjects; end if;
   if to_regclass('public.class_groups') is not null then delete from public.class_groups; end if;
   if to_regclass('public.ai_requests') is not null then delete from public.ai_requests; end if;
+  if to_regclass('public.ai_chat_sessions') is not null then delete from public.ai_chat_sessions; end if;
 end $$;
 
 -- 2. Teacher/student accounts. Captured into a temp table first, since
