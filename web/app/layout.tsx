@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { Lora, Nunito_Sans } from "next/font/google";
 import "./globals.css";
+import { LanguageProvider } from "@/components/LanguageProvider";
 import { APP_CONFIG } from "@/constants/config";
+import { getServerLanguage } from "@/lib/i18n/server";
 
 const heading = Lora({
   variable: "--font-heading",
@@ -20,14 +23,17 @@ export const metadata: Metadata = {
   description: APP_CONFIG.tagline,
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const language = await getServerLanguage();
+
   return (
     <html
-      lang="en"
+      lang={language}
       className={`${heading.variable} ${body.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans" suppressHydrationWarning>
-        {children}
+        <LanguageProvider initialLanguage={language}>{children}</LanguageProvider>
+        <Analytics />
       </body>
     </html>
   );

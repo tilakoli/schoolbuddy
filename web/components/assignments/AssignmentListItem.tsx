@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { useLanguage } from '@/components/LanguageProvider';
 import { getEffectiveStatus, STATUS_BADGE_CLASS, STATUS_LABEL, type AssignmentRow } from './types';
 
 function formatDue(dueAt: string | null) {
@@ -7,6 +8,7 @@ function formatDue(dueAt: string | null) {
 }
 
 export default function AssignmentListItem({ assignment, className }: { assignment: AssignmentRow; className?: string }) {
+  const { t } = useLanguage();
   const status = getEffectiveStatus(assignment);
   return (
     <Link
@@ -17,13 +19,13 @@ export default function AssignmentListItem({ assignment, className }: { assignme
         <p className="truncate font-semibold text-foreground">{assignment.title}</p>
         <p className="mt-1 truncate text-xs text-muted-foreground">
           {className ? `${className} · ` : ''}
-          <span className="capitalize">{assignment.assessment_type}</span> · <span className="capitalize">{assignment.difficulty}</span>
+          <span>{t(`assignment.${assignment.assessment_type}`)}</span> · <span>{t(`assignment.${assignment.difficulty}`)}</span>
           {assignment.questions && assignment.questions.length > 0 ? ` · ${assignment.questions.length} questions` : ''}
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         {status !== 'active' && (
-          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE_CLASS[status]}`}>{STATUS_LABEL[status]}</span>
+          <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE_CLASS[status]}`}>{t(STATUS_LABEL[status])}</span>
         )}
         <p className="text-sm text-muted-foreground">{formatDue(assignment.due_at)}</p>
       </div>

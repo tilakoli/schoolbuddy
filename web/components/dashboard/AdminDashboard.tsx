@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import DashboardBanner, { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
+import { getServerT } from '@/lib/i18n/server';
 import { createClient } from '@/lib/supabase/server';
 
 export default async function AdminDashboard({ name }: { name: string }) {
   const supabase = await createClient();
+  const t = await getServerT();
   const [{ data: profileRows }, { data: classGroups }, { data: subjects }, { data: assignments }] = supabase
     ? await Promise.all([
         supabase.from('profiles').select('role'),
@@ -20,31 +22,31 @@ export default async function AdminDashboard({ name }: { name: string }) {
   const staff = admins + vicePrincipals;
 
   const stats = [
-    { label: 'Teachers', value: teachers },
-    { label: 'Students', value: students },
-    { label: 'Staff (admin + VP)', value: staff },
-    { label: 'Total accounts', value: staff + teachers + students },
+    { label: t('nav.teachers'), value: teachers },
+    { label: t('dashboard.statStudents'), value: students },
+    { label: t('dashboard.statStaff'), value: staff },
+    { label: t('dashboard.statTotalAccounts'), value: staff + teachers + students },
   ];
 
   const schoolStats = [
-    { label: 'Classes', value: classGroups?.length ?? 0 },
-    { label: 'Subjects', value: subjects?.length ?? 0 },
-    { label: 'Assignments', value: assignments?.length ?? 0 },
+    { label: t('dashboard.statClasses'), value: classGroups?.length ?? 0 },
+    { label: t('dashboard.statSubjects'), value: subjects?.length ?? 0 },
+    { label: t('nav.assignments'), value: assignments?.length ?? 0 },
   ];
 
   return (
     <>
       <DashboardBanner
-        eyebrow="Welcome back"
+        eyebrow={t('dashboard.welcomeBack')}
         name={name}
-        summary={`Overseeing ${staff + teachers + students} accounts across the school.`}
+        summary={t('dashboard.overseeingSummary', { count: String(staff + teachers + students) })}
         actions={
           <>
             <Link href="/admin/teachers" className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground">
-              + New teacher
+              {t('dashboard.newTeacher')}
             </Link>
             <Link href="/admin/students" className="rounded-lg bg-white/15 px-4 py-2 text-sm font-semibold text-primary-foreground">
-              Manage students
+              {t('dashboard.manageStudents')}
             </Link>
           </>
         }
@@ -62,7 +64,7 @@ export default async function AdminDashboard({ name }: { name: string }) {
         })}
       </div>
 
-      <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">School overview</h2>
+      <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">{t('dashboard.schoolOverview')}</h2>
       <div className="grid grid-cols-3 gap-3">
         {schoolStats.map((stat, i) => {
           const tile = TILE_PALETTE[(i + 4) % TILE_PALETTE.length];
@@ -75,15 +77,15 @@ export default async function AdminDashboard({ name }: { name: string }) {
         })}
       </div>
 
-      <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">User management</h2>
+      <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">{t('dashboard.userManagement')}</h2>
       <div className="grid gap-3 sm:grid-cols-2">
         <Link href="/admin/teachers" className="rounded-xl border border-border bg-card shadow-sm p-4 hover:border-primary">
-          <p className="font-semibold text-foreground">Manage teachers</p>
-          <p className="mt-1 text-sm text-muted-foreground">Create, restrict, and reset passwords for teacher accounts.</p>
+          <p className="font-semibold text-foreground">{t('dashboard.manageTeachers')}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('dashboard.manageTeachersDesc')}</p>
         </Link>
         <Link href="/admin/students" className="rounded-xl border border-border bg-card shadow-sm p-4 hover:border-primary">
-          <p className="font-semibold text-foreground">Manage students</p>
-          <p className="mt-1 text-sm text-muted-foreground">Create, restrict, and reset passwords for student accounts.</p>
+          <p className="font-semibold text-foreground">{t('dashboard.manageStudents')}</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('dashboard.manageStudentsDesc')}</p>
         </Link>
       </div>
     </>

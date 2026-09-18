@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { getEffectiveStatus, STATUS_BADGE_CLASS, STATUS_LABEL, type AssignmentRow } from '@/components/assignments/types';
+import { getServerT } from '@/lib/i18n/server';
 import { getUserAndProfile } from '@/lib/supabase/profile';
 import { createClient } from '@/lib/supabase/server';
 
@@ -29,6 +30,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
   const { id: studentId } = await params;
   const { user, profile } = await getUserAndProfile();
   if (profile?.role !== 'teacher') redirect('/dashboard');
+  const t = await getServerT();
 
   const supabase = await createClient();
   if (!supabase) redirect('/dashboard');
@@ -81,7 +83,7 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
       <Link href="/students" className="text-sm text-muted-foreground hover:text-foreground">
-        ← Students
+        {t('students.backToStudents')}
       </Link>
 
       <div className="mt-3 flex items-center justify-between gap-3">
@@ -95,21 +97,21 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
       <div className="mt-6 grid grid-cols-3 gap-3">
         <div className="rounded-xl border border-border bg-card shadow-sm p-4">
           <p className="text-2xl font-bold text-foreground">{avgPercent != null ? `${avgPercent}%` : '—'}</p>
-          <p className="mt-1 text-sm text-muted-foreground">Average score</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('students.averageScore')}</p>
         </div>
         <div className="rounded-xl border border-border bg-card shadow-sm p-4">
           <p className="text-2xl font-bold text-foreground">{passRate != null ? `${passRate}%` : '—'}</p>
-          <p className="mt-1 text-sm text-muted-foreground">Pass rate</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('students.passRate')}</p>
         </div>
         <div className="rounded-xl border border-border bg-card shadow-sm p-4">
           <p className="text-2xl font-bold text-foreground">{graded.length}</p>
-          <p className="mt-1 text-sm text-muted-foreground">Graded</p>
+          <p className="mt-1 text-sm text-muted-foreground">{t('students.graded')}</p>
         </div>
       </div>
 
-      <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">Assignments</h2>
+      <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">{t('students.assignments')}</h2>
       <div className="space-y-2">
-        {assignments.length === 0 && <p className="text-sm text-muted-foreground">No assignments yet.</p>}
+        {assignments.length === 0 && <p className="text-sm text-muted-foreground">{t('students.noAssignmentsYet')}</p>}
         {assignments.map((assignment) => {
           const submission = submissionByAssignment.get(assignment.id);
           const status = getEffectiveStatus(assignment);
@@ -124,13 +126,13 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
                 <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   {classLabelByOffering.get(assignment.class_id)} · {formatDue(assignment.due_at)}
                   {status !== 'active' && (
-                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE_CLASS[status]}`}>{STATUS_LABEL[status]}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE_CLASS[status]}`}>{t(STATUS_LABEL[status])}</span>
                   )}
                 </p>
               </div>
               <div className="shrink-0 text-right">
                 {!submission ? (
-                  <p className="text-xs text-muted-foreground">Not submitted</p>
+                  <p className="text-xs text-muted-foreground">{t('students.notSubmitted')}</p>
                 ) : submission.status === 'graded' ? (
                   <>
                     <p className="text-sm font-semibold text-foreground">
@@ -138,12 +140,12 @@ export default async function StudentDetailPage({ params }: { params: Promise<{ 
                     </p>
                     {submission.passed !== null && (
                       <span className={`text-xs font-semibold ${submission.passed ? 'text-success' : 'text-danger'}`}>
-                        {submission.passed ? 'Pass' : 'Fail'}
+                        {submission.passed ? t('assignment.pass') : t('assignment.fail')}
                       </span>
                     )}
                   </>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Awaiting grade</p>
+                  <p className="text-xs text-muted-foreground">{t('students.awaitingGrade')}</p>
                 )}
               </div>
             </Link>

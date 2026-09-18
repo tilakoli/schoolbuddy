@@ -28,10 +28,11 @@ export interface AssignmentRow {
   status: AssignmentStatus;
 }
 
+// Values are i18n keys (lib/i18n), not literal text — render with t(STATUS_LABEL[status]).
 export const STATUS_LABEL: Record<AssignmentStatus, string> = {
-  active: 'Active',
-  ended: 'Ended',
-  cancelled: 'Cancelled',
+  active: 'assignment.statusActive',
+  ended: 'assignment.statusEnded',
+  cancelled: 'assignment.statusCancelled',
 };
 
 export const STATUS_BADGE_CLASS: Record<AssignmentStatus, string> = {
@@ -67,17 +68,18 @@ export interface SubmissionRow {
   rubric_scores?: { id: string; points: number }[] | null;
 }
 
+// label is an i18n key here too — render with t(type.label).
 export const ASSESSMENT_TYPES: { value: AssessmentType; label: string }[] = [
-  { value: 'homework', label: 'Homework' },
-  { value: 'test', label: 'Test' },
-  { value: 'discussion', label: 'Discussion' },
-  { value: 'revision', label: 'Revision' },
+  { value: 'homework', label: 'assignment.homework' },
+  { value: 'test', label: 'assignment.test' },
+  { value: 'discussion', label: 'assignment.discussion' },
+  { value: 'revision', label: 'assignment.revision' },
 ];
 
 export const DIFFICULTIES: { value: Difficulty; label: string }[] = [
-  { value: 'easy', label: 'Easy' },
-  { value: 'medium', label: 'Medium' },
-  { value: 'expert', label: 'Expert' },
+  { value: 'easy', label: 'assignment.easy' },
+  { value: 'medium', label: 'assignment.medium' },
+  { value: 'expert', label: 'assignment.expert' },
 ];
 
 // Starting point shown to a teacher when generating a test — editable per

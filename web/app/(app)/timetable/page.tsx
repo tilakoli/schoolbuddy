@@ -1,9 +1,18 @@
 import { redirect } from 'next/navigation';
 import { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
+import { getServerT } from '@/lib/i18n/server';
 import { getUserAndProfile } from '@/lib/supabase/profile';
 import { createClient } from '@/lib/supabase/server';
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAY_KEYS = [
+  'timetable.monday',
+  'timetable.tuesday',
+  'timetable.wednesday',
+  'timetable.thursday',
+  'timetable.friday',
+  'timetable.saturday',
+  'timetable.sunday',
+];
 
 interface ScheduleRow {
   id: string;
@@ -24,6 +33,7 @@ function formatTime(time: string) {
 export default async function TimetablePage() {
   const { user, profile } = await getUserAndProfile();
   if (profile?.role !== 'teacher' && profile?.role !== 'student') redirect('/dashboard');
+  const t = await getServerT();
 
   const supabase = await createClient();
   if (!supabase) redirect('/dashboard');
@@ -55,26 +65,24 @@ export default async function TimetablePage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
-      <h1 className="text-2xl font-bold text-foreground">Timetable</h1>
+      <h1 className="text-2xl font-bold text-foreground">{t('timetable.title')}</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        {profile.role === 'teacher' ? 'Your weekly teaching schedule' : 'Your weekly class schedule'}
+        {profile.role === 'teacher' ? t('timetable.teacherSubtitle') : t('timetable.studentSubtitle')}
       </p>
 
       {rows.length === 0 ? (
         <p className="mt-8 text-sm text-muted-foreground">
-          {profile.role === 'teacher'
-            ? "No scheduled classes yet — add times from a class's detail page."
-            : 'No scheduled classes yet.'}
+          {profile.role === 'teacher' ? t('timetable.noScheduledTeacher') : t('timetable.noScheduledStudent')}
         </p>
       ) : (
         <div className="mt-8 overflow-x-auto">
           <table className="w-full min-w-[560px] border-separate border-spacing-2">
             <thead>
               <tr>
-                <th className="w-24 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Time</th>
+                <th className="w-24 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('timetable.time')}</th>
                 {days.map((day) => (
                   <th key={day} className="text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    {DAYS[day - 1]}
+                    {t(DAY_KEYS[day - 1])}
                   </th>
                 ))}
               </tr>

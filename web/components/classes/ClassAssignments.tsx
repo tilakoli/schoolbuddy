@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { SparkleIcon } from '@/components/icons';
+import { useLanguage } from '@/components/LanguageProvider';
 import AssignmentListItem from '@/components/assignments/AssignmentListItem';
 import GenerateAssignmentForm from '@/components/assignments/GenerateAssignmentForm';
 import NewAssignmentForm from '@/components/assignments/NewAssignmentForm';
@@ -21,6 +22,7 @@ export default function ClassAssignments({
   initialAssignments: AssignmentRow[];
   extractedMaterials?: MaterialOption[];
 }) {
+  const { t } = useLanguage();
   const [assignments, setAssignments] = useState(initialAssignments);
   const [showCreate, setShowCreate] = useState(false);
   const [showGenerate, setShowGenerate] = useState(false);
@@ -28,7 +30,7 @@ export default function ClassAssignments({
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-foreground">Assignments</h2>
+        <h2 className="text-lg font-bold text-foreground">{t('nav.assignments')}</h2>
         <div className="flex gap-2">
           {extractedMaterials && (
             <button
@@ -39,7 +41,7 @@ export default function ClassAssignments({
               className="ai-border-glow flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
             >
               <SparkleIcon width={13} height={13} className="text-accent" />
-              Generate with AI
+              {t('assignment.generateWithAi')}
             </button>
           )}
           <button
@@ -49,7 +51,7 @@ export default function ClassAssignments({
             }}
             className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
           >
-            New assignment
+            {t('assignment.newAssignment')}
           </button>
         </div>
       </div>
@@ -77,7 +79,7 @@ export default function ClassAssignments({
       )}
 
       <div className="mt-4 space-y-2">
-        {assignments.length === 0 && <p className="text-sm text-muted-foreground">No assignments yet.</p>}
+        {assignments.length === 0 && <p className="text-sm text-muted-foreground">{t('students.noAssignmentsYet')}</p>}
         {assignments.map((assignment) => (
           <AssignmentListItem key={assignment.id} assignment={assignment} />
         ))}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useLanguage } from '@/components/LanguageProvider';
 import { createClient } from '@/lib/supabase/client';
 
 export interface StudentOption {
@@ -18,6 +19,7 @@ export default function RosterManager({
   initialRoster: StudentOption[];
   allStudents: StudentOption[];
 }) {
+  const { t } = useLanguage();
   const [roster, setRoster] = useState(initialRoster);
   const [search, setSearch] = useState('');
   const [error, setError] = useState<string>();
@@ -66,11 +68,11 @@ export default function RosterManager({
 
   return (
     <div>
-      <h2 className="text-lg font-bold text-foreground">Roster</h2>
+      <h2 className="text-lg font-bold text-foreground">{t('roster.title')}</h2>
       {error && <p className="mt-2 text-sm text-danger">{error}</p>}
 
       <div className="mt-4 space-y-2">
-        {roster.length === 0 && <p className="text-sm text-muted-foreground">No students enrolled yet.</p>}
+        {roster.length === 0 && <p className="text-sm text-muted-foreground">{t('roster.noStudentsEnrolledYet')}</p>}
         {roster.map((student) => (
           <div key={student.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card shadow-sm p-3">
             <div className="min-w-0">
@@ -82,7 +84,7 @@ export default function RosterManager({
               onClick={() => removeStudent(student.id)}
               className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50"
             >
-              Remove
+              {t('roster.remove')}
             </button>
           </div>
         ))}
@@ -91,7 +93,7 @@ export default function RosterManager({
       <div className="mt-6">
         <input
           type="text"
-          placeholder="Search students to add…"
+          placeholder={t('roster.searchToAdd')}
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           className="w-full rounded-lg border border-border bg-card shadow-sm px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
@@ -105,10 +107,10 @@ export default function RosterManager({
               className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm hover:bg-secondary disabled:opacity-50"
             >
               <span className="min-w-0 truncate text-foreground">{student.full_name || student.email}</span>
-              <span className="shrink-0 text-xs text-muted-foreground">Add</span>
+              <span className="shrink-0 text-xs text-muted-foreground">{t('roster.add')}</span>
             </button>
           ))}
-          {available.length === 0 && <p className="px-3 py-2 text-sm text-muted-foreground">No matching students.</p>}
+          {available.length === 0 && <p className="px-3 py-2 text-sm text-muted-foreground">{t('roster.noMatchingStudents')}</p>}
         </div>
       </div>
     </div>

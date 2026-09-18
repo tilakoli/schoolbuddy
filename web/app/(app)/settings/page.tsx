@@ -1,15 +1,10 @@
 import { MailIcon } from '@/components/icons';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 import SignOutButton from '@/components/SignOutButton';
 import { APP_CONFIG } from '@/constants/config';
+import { getServerT } from '@/lib/i18n/server';
 import { getUserAndProfile, type Role } from '@/lib/supabase/profile';
 import { createClient } from '@/lib/supabase/server';
-
-const ROLE_LABEL: Record<Role, string> = {
-  admin: 'Admin',
-  vice_principal: 'Vice Principal',
-  teacher: 'Teacher',
-  student: 'Student',
-};
 
 function initials(name: string | null, email: string | null) {
   if (name?.trim()) {
@@ -21,6 +16,14 @@ function initials(name: string | null, email: string | null) {
 
 export default async function SettingsPage() {
   const { user, profile } = await getUserAndProfile();
+  const t = await getServerT();
+
+  const roleLabel: Record<Role, string> = {
+    admin: t('settings.roleAdmin'),
+    vice_principal: t('settings.roleVicePrincipal'),
+    teacher: t('settings.roleTeacher'),
+    student: t('settings.roleStudent'),
+  };
 
   let subjectName: string | null = null;
   if (profile?.role === 'teacher') {
@@ -33,8 +36,8 @@ export default async function SettingsPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
-      <h1 className="text-3xl font-bold text-foreground">Settings</h1>
-      <p className="mt-2 text-sm text-muted-foreground">Manage your account.</p>
+      <h1 className="text-3xl font-bold text-foreground">{t('settings.title')}</h1>
+      <p className="mt-2 text-sm text-muted-foreground">{t('settings.subtitle')}</p>
 
       <div className="mt-8 max-w-md">
         <div className="animate-fade-up rounded-xl border border-border bg-card shadow-sm p-5">
@@ -50,7 +53,7 @@ export default async function SettingsPage() {
           {profile && (
             <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4">
               <span className="rounded-full bg-primary-light px-2.5 py-1 text-xs font-semibold text-primary">
-                {ROLE_LABEL[profile.role]}
+                {roleLabel[profile.role]}
               </span>
               {subjectName && (
                 <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-semibold text-foreground">{subjectName}</span>
@@ -60,7 +63,14 @@ export default async function SettingsPage() {
         </div>
 
         <div className="animate-fade-up mt-4 rounded-xl border border-border bg-card shadow-sm p-4" style={{ animationDelay: '0.05s' }}>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Support</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('settings.language')}</p>
+          <div className="mt-2">
+            <LanguageSwitcher />
+          </div>
+        </div>
+
+        <div className="animate-fade-up mt-4 rounded-xl border border-border bg-card shadow-sm p-4" style={{ animationDelay: '0.1s' }}>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('settings.support')}</p>
           <a
             href={`mailto:${APP_CONFIG.supportEmail}`}
             className="mt-2 flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary"

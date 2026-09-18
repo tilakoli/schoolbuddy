@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from 'react';
 import FormCard from '@/components/shared/FormCard';
+import { useLanguage } from '@/components/LanguageProvider';
 import { createClient } from '@/lib/supabase/client';
 import { ASSESSMENT_TYPES, DIFFICULTIES, type AssessmentType, type AssignmentRow, type Difficulty, type RubricCriterion } from './types';
 
@@ -18,6 +19,7 @@ interface DraftCriterion {
 }
 
 export default function NewAssignmentForm({ classId, classOptions, onCreated }: NewAssignmentFormProps) {
+  const { t } = useLanguage();
   const [selectedClassId, setSelectedClassId] = useState(classId ?? classOptions?.[0]?.id ?? '');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -84,7 +86,7 @@ export default function NewAssignmentForm({ classId, classOptions, onCreated }: 
     <form onSubmit={handleSubmit} className="space-y-4">
       {classOptions && (
         <div>
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Class</label>
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('form.class')}</label>
           <select
             value={selectedClassId}
             onChange={(event) => setSelectedClassId(event.target.value)}
@@ -100,7 +102,7 @@ export default function NewAssignmentForm({ classId, classOptions, onCreated }: 
       )}
 
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Title</label>
+        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('form.title')}</label>
         <input
           type="text"
           value={title}
@@ -110,7 +112,7 @@ export default function NewAssignmentForm({ classId, classOptions, onCreated }: 
       </div>
 
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Description</label>
+        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('form.description')}</label>
         <textarea
           value={description}
           onChange={(event) => setDescription(event.target.value)}
@@ -120,7 +122,7 @@ export default function NewAssignmentForm({ classId, classOptions, onCreated }: 
       </div>
 
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Assessment type</label>
+        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('assignment.assessmentType')}</label>
         <div className="mt-1 flex flex-wrap gap-1 rounded-lg bg-secondary p-1">
           {ASSESSMENT_TYPES.map((type) => (
             <button
@@ -131,14 +133,14 @@ export default function NewAssignmentForm({ classId, classOptions, onCreated }: 
                 assessmentType === type.value ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
               }`}
             >
-              {type.label}
+              {t(type.label)}
             </button>
           ))}
         </div>
       </div>
 
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Difficulty</label>
+        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('assignment.difficulty')}</label>
         <div className="mt-1 flex flex-wrap gap-2">
           {DIFFICULTIES.map((level) => (
             <button
@@ -151,14 +153,14 @@ export default function NewAssignmentForm({ classId, classOptions, onCreated }: 
                   : 'border-border text-muted-foreground'
               }`}
             >
-              {level.label}
+              {t(level.label)}
             </button>
           ))}
         </div>
       </div>
 
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Due date</label>
+        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('form.dueDate')}</label>
         <input
           type="datetime-local"
           value={dueAt}
@@ -169,7 +171,7 @@ export default function NewAssignmentForm({ classId, classOptions, onCreated }: 
 
       <div>
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Rubric (optional)</label>
+          <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('assignment.rubricOptional')}</label>
           <button
             type="button"
             onClick={() => {
@@ -178,7 +180,7 @@ export default function NewAssignmentForm({ classId, classOptions, onCreated }: 
             }}
             className="text-xs font-semibold text-primary"
           >
-            {showRubric ? 'Remove rubric' : 'Add rubric'}
+            {showRubric ? t('assignment.removeRubric') : t('assignment.addRubric')}
           </button>
         </div>
         {showRubric && (
@@ -187,7 +189,7 @@ export default function NewAssignmentForm({ classId, classOptions, onCreated }: 
               <div key={c.id} className="flex items-center gap-2">
                 <input
                   type="text"
-                  placeholder="Criterion (e.g. Content accuracy)"
+                  placeholder={t('assignment.criterionPlaceholder')}
                   value={c.criterion}
                   onChange={(event) => updateCriterion(c.id, { criterion: event.target.value })}
                   className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
@@ -195,22 +197,20 @@ export default function NewAssignmentForm({ classId, classOptions, onCreated }: 
                 <input
                   type="number"
                   min={1}
-                  placeholder="Points"
+                  placeholder={t('assignment.points')}
                   value={c.max_points}
                   onChange={(event) => updateCriterion(c.id, { max_points: Number(event.target.value) })}
                   className="w-20 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
                 />
                 <button type="button" onClick={() => removeCriterion(c.id)} className="shrink-0 text-xs font-medium text-danger">
-                  Remove
+                  {t('form.remove')}
                 </button>
               </div>
             ))}
             <button type="button" onClick={addCriterion} className="text-xs font-semibold text-primary">
-              + Add criterion
+              {t('assignment.addCriterion')}
             </button>
-            <p className="text-xs text-muted-foreground">
-              When you grade a submission, you&apos;ll score each criterion — the total is the sum.
-            </p>
+            <p className="text-xs text-muted-foreground">{t('assignment.rubricHelp')}</p>
           </div>
         )}
       </div>
@@ -221,7 +221,7 @@ export default function NewAssignmentForm({ classId, classOptions, onCreated }: 
         disabled={loading || !title.trim() || !selectedClassId}
         className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
       >
-        {loading ? 'Saving…' : 'Save assignment'}
+        {loading ? t('form.saving') : t('assignment.saveAssignment')}
       </button>
     </form>
     </FormCard>

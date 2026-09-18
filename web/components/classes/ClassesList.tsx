@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, type FormEvent } from 'react';
 import { GridIcon } from '@/components/icons';
 import { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
+import { useLanguage } from '@/components/LanguageProvider';
 import EmptyState from '@/components/shared/EmptyState';
 import { createClient } from '@/lib/supabase/client';
 import type { ClassGroupSummary } from '@/lib/classGroups';
@@ -32,6 +33,7 @@ type Props =
     };
 
 export default function ClassesList(props: Props) {
+  const { t } = useLanguage();
   const { initialClasses, canManage } = props;
   const [classes, setClasses] = useState(initialClasses);
   const [groups, setGroups] = useState(canManage ? props.groupOptions : []);
@@ -44,9 +46,9 @@ export default function ClassesList(props: Props) {
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Classes</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('nav.classes')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {canManage ? 'Every class in the school' : 'Your subject, across your classes'}
+            {canManage ? t('classes.everyClassInSchool') : t('classes.yourSubjectAcrossClasses')}
           </p>
         </div>
         {canManage && (
@@ -54,7 +56,7 @@ export default function ClassesList(props: Props) {
             onClick={() => setShowCreate((v) => !v)}
             className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground"
           >
-            New class
+            {t('classes.newClass')}
           </button>
         )}
       </div>
@@ -91,8 +93,8 @@ export default function ClassesList(props: Props) {
         {classes.length === 0 && (
           <EmptyState
             icon={GridIcon}
-            title="No classes yet"
-            description={canManage ? 'Create your first one above.' : 'Admin will assign your subject to one.'}
+            title={t('classes.noClassesYetShort')}
+            description={canManage ? t('classes.createFirstOneAbove') : t('classes.adminWillAssign')}
           />
         )}
         {classes.map((classItem, i) => {
@@ -112,12 +114,12 @@ export default function ClassesList(props: Props) {
                   <p className="truncate font-semibold text-foreground">{classItem.name}</p>
                   {canManage && (
                     <p className="mt-1 truncate text-sm text-muted-foreground">
-                      {classItem.subjectNames.join(' · ') || 'No subjects yet'}
+                      {classItem.subjectNames.join(' · ') || t('classes.noSubjectsYet')}
                     </p>
                   )}
                 </div>
               </div>
-              <p className="shrink-0 text-sm text-muted-foreground">{classItem.studentCount} students</p>
+              <p className="shrink-0 text-sm text-muted-foreground">{classItem.studentCount} {t('dashboard.statStudents').toLowerCase()}</p>
             </Link>
           );
         })}
@@ -139,6 +141,7 @@ function NewClassForm({
   onGroupCreated: (group: GroupOption) => void;
   onCreated: (result: { groupId: string; groupName: string; subjectNames: string[] }) => void;
 }) {
+  const { t } = useLanguage();
   const [groupId, setGroupId] = useState<string>(groups[0]?.id ?? NEW_OPTION);
   const [newGroupName, setNewGroupName] = useState('');
   const [subjectIds, setSubjectIds] = useState<string[]>([]);
@@ -202,7 +205,7 @@ function NewClassForm({
   return (
     <form onSubmit={handleSubmit} className="mt-4 space-y-3 rounded-xl border border-border bg-card shadow-sm p-4">
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Class</label>
+        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('form.class')}</label>
         <select
           value={groupId}
           onChange={(event) => setGroupId(event.target.value)}
@@ -213,12 +216,12 @@ function NewClassForm({
               {group.name}
             </option>
           ))}
-          <option value={NEW_OPTION}>+ New class…</option>
+          <option value={NEW_OPTION}>{t('classes.newClassOption')}</option>
         </select>
         {groupId === NEW_OPTION && (
           <input
             type="text"
-            placeholder="New class name (e.g. Class 9)"
+            placeholder={t('classes.newClassName')}
             value={newGroupName}
             onChange={(event) => setNewGroupName(event.target.value)}
             className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary sm:w-1/2"
@@ -227,10 +230,10 @@ function NewClassForm({
       </div>
 
       <div>
-        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Subjects taught in this class</label>
+        <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('classes.subjectsTaughtInClass')}</label>
         {subjects.length === 0 ? (
           <p className="mt-1 text-sm text-muted-foreground">
-            No subjects yet — onboard a teacher with a subject first, from Teachers.
+            {t('classes.noSubjectsOnboard')}
           </p>
         ) : (
           <div className="mt-2 space-y-1">
@@ -248,14 +251,14 @@ function NewClassForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <input
           type="text"
-          placeholder="Period / time"
+          placeholder={t('form.period')}
           value={period}
           onChange={(event) => setPeriod(event.target.value)}
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
         />
         <input
           type="text"
-          placeholder="Room"
+          placeholder={t('form.room')}
           value={room}
           onChange={(event) => setRoom(event.target.value)}
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
@@ -267,7 +270,11 @@ function NewClassForm({
         disabled={loading || subjectIds.length === 0}
         className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
       >
-        {loading ? 'Creating…' : `Create class${subjectIds.length > 1 ? ` with ${subjectIds.length} subjects` : ''}`}
+        {loading
+          ? t('classes.creating')
+          : subjectIds.length > 1
+            ? t('classes.createClassWithCount', { count: String(subjectIds.length) })
+            : t('classes.createClass')}
       </button>
     </form>
   );

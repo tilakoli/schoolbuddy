@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useLanguage } from '@/components/LanguageProvider';
 import { createClient } from '@/lib/supabase/client';
 import {
   getEffectiveStatus,
@@ -19,17 +20,18 @@ function formatDue(dueAt: string | null) {
 }
 
 function Header({ assignment, contextLabel }: { assignment: AssignmentRow; contextLabel: string }) {
+  const { t } = useLanguage();
   const status = getEffectiveStatus(assignment);
   return (
     <div>
       <p className="text-sm text-muted-foreground">{contextLabel}</p>
       <div className="mt-1 flex flex-wrap items-center gap-2">
         <h1 className="text-2xl font-bold text-foreground">{assignment.title}</h1>
-        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE_CLASS[status]}`}>{STATUS_LABEL[status]}</span>
+        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${STATUS_BADGE_CLASS[status]}`}>{t(STATUS_LABEL[status])}</span>
       </div>
       {assignment.description && <p className="mt-2 text-sm text-muted-foreground">{assignment.description}</p>}
       <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        <span className="capitalize">{assignment.assessment_type}</span> · <span className="capitalize">{assignment.difficulty}</span> ·{' '}
+        <span>{t(`assignment.${assignment.assessment_type}`)}</span> · <span>{t(`assignment.${assignment.difficulty}`)}</span> ·{' '}
         {formatDue(assignment.due_at)}
         {assignment.questions && assignment.questions.length > 0 && (
           <> · {assignment.questions.length} questions{assignment.pass_score != null ? ` · pass at ${assignment.pass_score}` : ''}</>
@@ -51,6 +53,7 @@ export function StudentAssignmentView({
   contextLabel: string;
   initialSubmission: SubmissionRow | null;
 }) {
+  const { t } = useLanguage();
   const [submission, setSubmission] = useState(initialSubmission);
   const [selected, setSelected] = useState<Record<string, number>>({});
   const [text, setText] = useState('');
@@ -92,7 +95,7 @@ export function StudentAssignmentView({
       <div className="mt-8">
         {status === 'cancelled' ? (
           <div className="rounded-xl border border-border bg-card shadow-sm p-4">
-            <p className="text-sm text-muted-foreground">This assignment was cancelled — no submission is needed.</p>
+            <p className="text-sm text-muted-foreground">{t('assignment.cancelledNotice')}</p>
           </div>
         ) : submission ? (
           <div className="rounded-xl border border-border bg-card shadow-sm p-4">
@@ -102,7 +105,7 @@ export function StudentAssignmentView({
                   {submission.score ?? '—'} / {submission.max_score ?? '—'}
                   {submission.passed !== null && (
                     <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-semibold ${submission.passed ? 'bg-success/10 text-success' : 'bg-danger/10 text-danger'}`}>
-                      {submission.passed ? 'Pass' : 'Fail'}
+                      {submission.passed ? t('assignment.pass') : t('assignment.fail')}
                     </span>
                   )}
                 </p>
@@ -122,13 +125,13 @@ export function StudentAssignmentView({
               </>
             ) : (
               <p className="text-sm text-muted-foreground">
-                {status === 'active' ? 'Submitted — results will be available once this assignment ends.' : 'Submitted — awaiting grade.'}
+                {status === 'active' ? t('assignment.resultsAfterEnd') : t('assignment.submittedAwaitingGrade')}
               </p>
             )}
           </div>
         ) : status === 'ended' ? (
           <div className="rounded-xl border border-border bg-card shadow-sm p-4">
-            <p className="text-sm text-muted-foreground">This assignment has ended — no submission was made.</p>
+            <p className="text-sm text-muted-foreground">{t('assignment.endedNoSubmission')}</p>
           </div>
         ) : isMcq ? (
           <div className="space-y-4">
@@ -158,7 +161,7 @@ export function StudentAssignmentView({
               disabled={!canSubmit || submitting}
               className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
             >
-              {submitting ? 'Submitting…' : 'Submit'}
+              {submitting ? t('assignment.submitting') : t('assignment.submit')}
             </button>
           </div>
         ) : (
@@ -167,7 +170,7 @@ export function StudentAssignmentView({
               value={text}
               onChange={(event) => setText(event.target.value)}
               rows={6}
-              placeholder="Write your answer…"
+              placeholder={t('assignment.writeYourAnswer')}
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
             />
             {error && <p className="text-sm text-danger">{error}</p>}
@@ -176,7 +179,7 @@ export function StudentAssignmentView({
               disabled={!canSubmit || submitting}
               className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
             >
-              {submitting ? 'Submitting…' : 'Submit'}
+              {submitting ? t('assignment.submitting') : t('assignment.submit')}
             </button>
           </div>
         )}
@@ -204,6 +207,7 @@ export function TeacherAssignmentView({
   initialSubmissions: SubmissionRow[];
   answerKey?: AnswerKeyEntry[] | null;
 }) {
+  const { t } = useLanguage();
   const router = useRouter();
   const [current, setCurrent] = useState(assignment);
   const [submissions, setSubmissions] = useState(initialSubmissions);
@@ -233,7 +237,7 @@ export function TeacherAssignmentView({
   };
 
   const deleteAssignment = async () => {
-    if (!window.confirm('Delete this assignment permanently? All submissions and answer keys are deleted too. This can’t be undone.')) return;
+    if (!window.confirm(t('assignment.deleteConfirm'))) return;
     const supabase = createClient();
     if (!supabase) return;
     const { error } = await supabase.from('assignments').delete().eq('id', current.id);
@@ -245,14 +249,14 @@ export function TeacherAssignmentView({
       <Header assignment={current} contextLabel={contextLabel} />
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Status</span>
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('assignment.status')}</span>
         {status === 'active' && (
           <button
             onClick={() => setStatus({ status: 'ended' })}
             disabled={statusSaving}
             className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
           >
-            End now
+            {t('assignment.endNow')}
           </button>
         )}
         {status === 'ended' && (
@@ -261,7 +265,7 @@ export function TeacherAssignmentView({
             disabled={statusSaving}
             className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
           >
-            Reopen
+            {t('assignment.reopen')}
           </button>
         )}
         {status !== 'cancelled' && (
@@ -270,7 +274,7 @@ export function TeacherAssignmentView({
             disabled={statusSaving}
             className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
           >
-            Cancel
+            {t('form.cancel')}
           </button>
         )}
         {status === 'cancelled' && (
@@ -279,11 +283,11 @@ export function TeacherAssignmentView({
             disabled={statusSaving}
             className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-50"
           >
-            Reactivate
+            {t('assignment.reactivate')}
           </button>
         )}
         <button onClick={deleteAssignment} className="rounded-lg border border-danger/30 px-3 py-1.5 text-xs font-semibold text-danger hover:bg-danger/10">
-          Delete permanently
+          {t('assignment.deletePermanently')}
         </button>
       </div>
 
@@ -293,7 +297,7 @@ export function TeacherAssignmentView({
             onClick={() => setShowAnswers((v) => !v)}
             className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
           >
-            {showAnswers ? 'Hide answers' : 'Show answers'}
+            {showAnswers ? t('assignment.hideAnswers') : t('assignment.showAnswers')}
           </button>
           {showAnswers && (
             <div className="mt-3 space-y-3">
@@ -326,9 +330,9 @@ export function TeacherAssignmentView({
         </div>
       )}
 
-      <h2 className="mt-8 text-lg font-bold text-foreground">Submissions</h2>
+      <h2 className="mt-8 text-lg font-bold text-foreground">{t('assignment.submissions')}</h2>
       <div className="mt-4 space-y-2">
-        {roster.length === 0 && <p className="text-sm text-muted-foreground">No students enrolled yet.</p>}
+        {roster.length === 0 && <p className="text-sm text-muted-foreground">{t('assignment.noStudentsEnrolled')}</p>}
         {roster.map((student) => {
           const submission = submissionByStudent.get(student.id);
           return (
@@ -338,10 +342,10 @@ export function TeacherAssignmentView({
                   <p className="truncate font-semibold text-foreground">{student.full_name || student.email}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {!submission
-                      ? 'Not submitted'
+                      ? t('assignment.notSubmitted')
                       : submission.status === 'graded'
-                        ? `Graded — ${submission.score ?? '—'} / ${submission.max_score ?? '—'}${submission.passed !== null ? (submission.passed ? ' · Pass' : ' · Fail') : ''}`
-                        : 'Submitted — awaiting grade'}
+                        ? `${t('assignment.graded')} — ${submission.score ?? '—'} / ${submission.max_score ?? '—'}${submission.passed !== null ? ` · ${submission.passed ? t('assignment.pass') : t('assignment.fail')}` : ''}`
+                        : t('assignment.submittedAwaitingGrade')}
                   </p>
                 </div>
                 {submission && (
@@ -349,7 +353,7 @@ export function TeacherAssignmentView({
                     onClick={() => setGradingId(gradingId === submission.id ? null : submission.id)}
                     className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
                   >
-                    {gradingId === submission.id ? 'Close' : submission.status === 'graded' ? 'Edit grade' : 'Grade'}
+                    {gradingId === submission.id ? t('form.close') : submission.status === 'graded' ? t('assignment.editGrade') : t('assignment.grade')}
                   </button>
                 )}
               </div>
@@ -388,6 +392,7 @@ function GradeForm({
   rubric?: RubricCriterion[] | null;
   onSaved: (updated: SubmissionRow) => void;
 }) {
+  const { t } = useLanguage();
   const hasRubric = !!rubric && rubric.length > 0;
   const [criterionPoints, setCriterionPoints] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
@@ -456,7 +461,7 @@ function GradeForm({
             </div>
           ))}
           <p className="text-sm font-semibold text-foreground">
-            Total: {rubricTotal} / {rubricMax}
+            {t('assignment.total')}: {rubricTotal} / {rubricMax}
           </p>
         </div>
       ) : (
@@ -465,14 +470,14 @@ function GradeForm({
             type="number"
             value={score}
             onChange={(event) => setScore(Number(event.target.value))}
-            placeholder="Score"
+            placeholder={t('assignment.score')}
             className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
           />
           <input
             type="number"
             value={maxScoreValue}
             onChange={(event) => setMaxScoreValue(Number(event.target.value))}
-            placeholder="Out of"
+            placeholder={t('assignment.outOf')}
             className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
           />
         </div>
@@ -483,21 +488,21 @@ function GradeForm({
           onClick={() => setPassed(true)}
           className={`rounded-full border px-3 py-1 text-xs font-semibold ${passed ? 'border-transparent bg-success/10 text-success' : 'border-border text-muted-foreground'}`}
         >
-          Pass
+          {t('assignment.pass')}
         </button>
         <button
           type="button"
           onClick={() => setPassed(false)}
           className={`rounded-full border px-3 py-1 text-xs font-semibold ${!passed ? 'border-transparent bg-danger/10 text-danger' : 'border-border text-muted-foreground'}`}
         >
-          Fail
+          {t('assignment.fail')}
         </button>
       </div>
       <textarea
         value={feedback}
         onChange={(event) => setFeedback(event.target.value)}
         rows={2}
-        placeholder="Feedback (optional)"
+        placeholder={t('assignment.feedbackOptional')}
         className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
       />
       {error && <p className="text-sm text-danger">{error}</p>}
@@ -506,7 +511,7 @@ function GradeForm({
         disabled={saving}
         className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
       >
-        {saving ? 'Saving…' : 'Save grade'}
+        {saving ? t('form.saving') : t('assignment.saveGrade')}
       </button>
     </div>
   );

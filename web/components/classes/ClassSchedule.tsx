@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import { useLanguage } from '@/components/LanguageProvider';
 import { createClient } from '@/lib/supabase/client';
 
 export interface ScheduleSlot {
@@ -10,7 +11,15 @@ export interface ScheduleSlot {
   end_time: string;
 }
 
-const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const DAY_KEYS = [
+  'timetable.monday',
+  'timetable.tuesday',
+  'timetable.wednesday',
+  'timetable.thursday',
+  'timetable.friday',
+  'timetable.saturday',
+  'timetable.sunday',
+];
 
 function formatTime(time: string) {
   const [h, m] = time.split(':').map(Number);
@@ -20,6 +29,7 @@ function formatTime(time: string) {
 }
 
 export default function ClassSchedule({ classId, initialSlots }: { classId: string; initialSlots: ScheduleSlot[] }) {
+  const { t } = useLanguage();
   const [slots, setSlots] = useState(
     [...initialSlots].sort((a, b) => a.day_of_week - b.day_of_week || a.start_time.localeCompare(b.start_time))
   );
@@ -62,12 +72,12 @@ export default function ClassSchedule({ classId, initialSlots }: { classId: stri
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-foreground">Schedule</h2>
+        <h2 className="text-lg font-bold text-foreground">{t('timetable.schedule')}</h2>
         <button
           onClick={() => setShowAdd((v) => !v)}
           className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
         >
-          Add time
+          {t('timetable.addTime')}
         </button>
       </div>
 
@@ -79,9 +89,9 @@ export default function ClassSchedule({ classId, initialSlots }: { classId: stri
               onChange={(event) => setDayOfWeek(Number(event.target.value))}
               className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
             >
-              {DAYS.map((day, i) => (
-                <option key={day} value={i + 1}>
-                  {day}
+              {DAY_KEYS.map((dayKey, i) => (
+                <option key={dayKey} value={i + 1}>
+                  {t(dayKey)}
                 </option>
               ))}
             </select>
@@ -104,23 +114,23 @@ export default function ClassSchedule({ classId, initialSlots }: { classId: stri
             disabled={loading}
             className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
           >
-            {loading ? 'Adding…' : 'Add to schedule'}
+            {loading ? t('timetable.adding') : t('timetable.addToSchedule')}
           </button>
         </form>
       )}
 
       <div className="mt-4 space-y-2">
-        {slots.length === 0 && <p className="text-sm text-muted-foreground">No scheduled times yet.</p>}
+        {slots.length === 0 && <p className="text-sm text-muted-foreground">{t('timetable.noScheduledTimesYet')}</p>}
         {slots.map((slot) => (
           <div key={slot.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card shadow-sm p-3">
             <p className="text-sm font-medium text-foreground">
-              {DAYS[slot.day_of_week - 1]} · {formatTime(slot.start_time)}–{formatTime(slot.end_time)}
+              {t(DAY_KEYS[slot.day_of_week - 1])} · {formatTime(slot.start_time)}–{formatTime(slot.end_time)}
             </p>
             <button
               onClick={() => removeSlot(slot.id)}
               className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary"
             >
-              Remove
+              {t('form.remove')}
             </button>
           </div>
         ))}

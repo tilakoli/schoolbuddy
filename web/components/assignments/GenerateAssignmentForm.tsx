@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { SparkleIcon } from '@/components/icons';
+import { useLanguage } from '@/components/LanguageProvider';
 import FormCard from '@/components/shared/FormCard';
 import { createClient } from '@/lib/supabase/client';
 import { DIFFICULTIES, DIFFICULTY_GUIDANCE, type AssignmentRow, type Difficulty } from './types';
@@ -35,6 +36,7 @@ export default function GenerateAssignmentForm({
   // inside this same card, so the two tabs (Manual/Generate) look identical.
   classPicker?: ReactNode;
 }) {
+  const { t, language } = useLanguage();
   const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([]);
   const [questionCount, setQuestionCount] = useState(5);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
@@ -69,7 +71,7 @@ export default function GenerateAssignmentForm({
       const res = await fetch('/api/assignments/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ classId, materialIds: selectedMaterialIds, questionCount, difficulty, guidance }),
+        body: JSON.stringify({ classId, materialIds: selectedMaterialIds, questionCount, difficulty, guidance, language }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Generation failed.');
@@ -145,9 +147,9 @@ export default function GenerateAssignmentForm({
         <>
           {classPicker}
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Source materials</label>
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('assignment.sourceMaterials')}</label>
             {materials.length === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground">No extracted materials yet — upload one below first.</p>
+              <p className="mt-2 text-sm text-muted-foreground">{t('assignment.noExtractedMaterials')}</p>
             ) : (
               <div className="mt-2 space-y-1">
                 {materials.map((material) => (
@@ -166,7 +168,7 @@ export default function GenerateAssignmentForm({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Number of questions</label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('assignment.numberOfQuestions')}</label>
               <input
                 type="number"
                 min={1}
@@ -177,7 +179,7 @@ export default function GenerateAssignmentForm({
               />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Difficulty</label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('assignment.difficulty')}</label>
               <div className="mt-1 flex gap-2">
                 {DIFFICULTIES.map((level) => (
                   <button
@@ -188,7 +190,7 @@ export default function GenerateAssignmentForm({
                       difficulty === level.value ? 'border-transparent bg-primary-light text-primary' : 'border-border text-muted-foreground'
                     }`}
                   >
-                    {level.label}
+                    {t(level.label)}
                   </button>
                 ))}
               </div>
@@ -196,16 +198,14 @@ export default function GenerateAssignmentForm({
           </div>
 
           <div>
-            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Guidance for the AI (edit or add your own instructions)
-            </label>
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('assignment.guidanceLabel')}</label>
             <textarea
               value={guidance}
               onChange={(event) => setGuidance(event.target.value)}
               rows={3}
               className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
             />
-            <p className="mt-1 text-xs text-muted-foreground">Pre-filled from the difficulty you picked — change it, or add extra instructions.</p>
+            <p className="mt-1 text-xs text-muted-foreground">{t('assignment.guidanceHelp')}</p>
           </div>
 
           {error && <p className="text-sm text-danger">{error}</p>}
@@ -216,10 +216,10 @@ export default function GenerateAssignmentForm({
               className="ai-border-glow flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
             >
               <SparkleIcon width={14} height={14} className={generating ? 'animate-spin' : ''} />
-              {generating ? 'Generating…' : 'Generate'}
+              {generating ? t('assignment.generating') : t('assignment.generate')}
             </button>
             <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary">
-              Cancel
+              {t('form.cancel')}
             </button>
           </div>
         </>
@@ -227,18 +227,18 @@ export default function GenerateAssignmentForm({
 
       {isReviewing && (
         <>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Review before publishing</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('assignment.reviewBeforePublishing')}</p>
           <input
             type="text"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            placeholder="Title"
+            placeholder={t('form.title')}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground outline-none focus:border-primary"
           />
           <textarea
             value={description}
             onChange={(event) => setDescription(event.target.value)}
-            placeholder="Description"
+            placeholder={t('form.description')}
             rows={2}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
           />
@@ -254,7 +254,7 @@ export default function GenerateAssignmentForm({
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground outline-none focus:border-primary"
                   />
                   <button onClick={() => removeQuestion(question.id)} className="shrink-0 text-xs font-medium text-danger">
-                    Remove
+                    {t('form.remove')}
                   </button>
                 </div>
                 <div className="mt-2 space-y-1">
@@ -275,12 +275,12 @@ export default function GenerateAssignmentForm({
                     </label>
                   ))}
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">Question {qi + 1} — select the correct option</p>
+                <p className="mt-1 text-xs text-muted-foreground">{t('assignment.questionSelectCorrect', { n: String(qi + 1) })}</p>
                 <input
                   type="text"
                   value={question.explanation}
                   onChange={(event) => updateQuestion(question.id, { explanation: event.target.value })}
-                  placeholder="Explanation (shown only to you, when reviewing answers later)"
+                  placeholder={t('assignment.explanationPlaceholder')}
                   className="mt-2 w-full rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground outline-none focus:border-primary"
                 />
               </div>
@@ -289,7 +289,9 @@ export default function GenerateAssignmentForm({
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pass score (out of {questions.length})</label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {t('assignment.passScoreOutOf', { total: String(questions.length) })}
+              </label>
               <input
                 type="number"
                 min={0}
@@ -300,7 +302,7 @@ export default function GenerateAssignmentForm({
               />
             </div>
             <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Due date</label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('form.dueDate')}</label>
               <input
                 type="datetime-local"
                 value={dueAt}
@@ -317,10 +319,10 @@ export default function GenerateAssignmentForm({
               disabled={publishing || questions.length === 0 || !title.trim()}
               className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
             >
-              {publishing ? 'Publishing…' : 'Publish test'}
+              {publishing ? t('assignment.publishing') : t('assignment.publishTest')}
             </button>
             <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary">
-              Cancel
+              {t('form.cancel')}
             </button>
           </div>
         </>

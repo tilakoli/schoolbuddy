@@ -12,13 +12,17 @@ interface GeneratedQuestion {
   explanation: string;
 }
 
-function buildPrompt(materials: { title: string; extracted_text: string }[], questionCount: number, guidance: string) {
+const LANGUAGE_NAMES: Record<string, string> = { en: 'English', hi: 'Hindi', te: 'Telugu' };
+
+function buildPrompt(materials: { title: string; extracted_text: string }[], questionCount: number, guidance: string, language?: string) {
   const source = materials.map((m) => `### ${m.title}\n${m.extracted_text}`).join('\n\n');
+  const languageName = LANGUAGE_NAMES[language ?? 'en'] ?? 'English';
   return (
     `You are writing a multiple-choice test for students, based only on the class material below. ` +
     `Write exactly ${questionCount} questions. Each question must have exactly 4 options with exactly one correct answer, ` +
     `plus a short one-sentence explanation of why that answer is correct (for the teacher's own review — students never see it). ` +
-    `Do not invent facts outside the material. Also write a short test title and one-sentence description.\n\n` +
+    `Do not invent facts outside the material. Also write a short test title and one-sentence description. ` +
+    `Write the title, description, every question, its options, and its explanation in ${languageName} — translate any material excerpts you reference into ${languageName} too, rather than quoting the source language.\n\n` +
     `Difficulty guidance (follow this closely — it may include instructions from the teacher, not just a difficulty label):\n${guidance}\n\n` +
     `Respond with only a JSON object of this shape: ` +
     `{"title": string, "description": string, "questions": [{"prompt": string, "options": [string, string, string, string], "correct_index": number, "explanation": string}]}.\n\n` +
@@ -33,6 +37,7 @@ export async function POST(request: Request) {
     questionCount?: number;
     difficulty?: string;
     guidance?: string;
+    language?: string;
   };
   const { classId, materialIds } = body;
   const questionCount = Math.min(Math.max(body.questionCount ?? 5, 1), 20);
@@ -81,7 +86,7 @@ export async function POST(request: Request) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: buildPrompt(usable, questionCount, guidance) }] }],
+          contents: [{ role: 'user', parts: [{ text: buildPrompt(usable, questionCount, guidance, body.language) }] }],
           generationConfig: { responseMimeType: 'application/json' },
         }),
       }

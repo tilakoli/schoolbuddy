@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import SignOutButton from '@/components/SignOutButton';
 import { APP_CONFIG } from '@/constants/config';
+import { useLanguage } from '@/components/LanguageProvider';
 import {
   CalendarIcon,
   ChatIcon,
@@ -20,47 +21,48 @@ import type { Role } from '@/lib/supabase/profile';
 
 type IconComponent = typeof HomeIcon;
 
-const NAV: Record<Role, { href: string; label: string; icon: IconComponent }[]> = {
+const NAV: Record<Role, { href: string; labelKey: string; icon: IconComponent }[]> = {
   admin: [
-    { href: '/dashboard', label: 'Dashboard', icon: HomeIcon },
-    { href: '/ai-chat', label: 'AI Chat', icon: ChatIcon },
-    { href: '/classes', label: 'Classes', icon: GridIcon },
-    { href: '/admin/teachers', label: 'Teachers', icon: UsersIcon },
-    { href: '/admin/students', label: 'Students', icon: UsersIcon },
+    { href: '/dashboard', labelKey: 'nav.dashboard', icon: HomeIcon },
+    { href: '/ai-chat', labelKey: 'nav.aiChat', icon: ChatIcon },
+    { href: '/classes', labelKey: 'nav.classes', icon: GridIcon },
+    { href: '/admin/teachers', labelKey: 'nav.teachers', icon: UsersIcon },
+    { href: '/admin/students', labelKey: 'nav.students', icon: UsersIcon },
   ],
   vice_principal: [
-    { href: '/dashboard', label: 'Dashboard', icon: HomeIcon },
-    { href: '/ai-chat', label: 'AI Chat', icon: ChatIcon },
-    { href: '/classes', label: 'Classes', icon: GridIcon },
-    { href: '/admin/teachers', label: 'Teachers', icon: UsersIcon },
-    { href: '/admin/students', label: 'Students', icon: UsersIcon },
+    { href: '/dashboard', labelKey: 'nav.dashboard', icon: HomeIcon },
+    { href: '/ai-chat', labelKey: 'nav.aiChat', icon: ChatIcon },
+    { href: '/classes', labelKey: 'nav.classes', icon: GridIcon },
+    { href: '/admin/teachers', labelKey: 'nav.teachers', icon: UsersIcon },
+    { href: '/admin/students', labelKey: 'nav.students', icon: UsersIcon },
   ],
   teacher: [
-    { href: '/dashboard', label: 'Dashboard', icon: HomeIcon },
-    { href: '/ai-chat', label: 'AI Chat', icon: ChatIcon },
-    { href: '/classes', label: 'Classes', icon: GridIcon },
-    { href: '/students', label: 'Students', icon: UsersIcon },
-    { href: '/assignments', label: 'Assignments', icon: ClipboardIcon },
-    { href: '/exams', label: 'Exams', icon: FileTextIcon },
-    { href: '/performance', label: 'Performance', icon: TrendingUpIcon },
-    { href: '/timetable', label: 'Timetable', icon: CalendarIcon },
-    { href: '/learning-videos', label: 'Learning Videos', icon: PlayCircleIcon },
+    { href: '/dashboard', labelKey: 'nav.dashboard', icon: HomeIcon },
+    { href: '/ai-chat', labelKey: 'nav.aiChat', icon: ChatIcon },
+    { href: '/classes', labelKey: 'nav.classes', icon: GridIcon },
+    { href: '/students', labelKey: 'nav.students', icon: UsersIcon },
+    { href: '/assignments', labelKey: 'nav.assignments', icon: ClipboardIcon },
+    { href: '/exams', labelKey: 'nav.exams', icon: FileTextIcon },
+    { href: '/performance', labelKey: 'nav.performance', icon: TrendingUpIcon },
+    { href: '/timetable', labelKey: 'nav.timetable', icon: CalendarIcon },
+    { href: '/learning-videos', labelKey: 'nav.learningVideos', icon: PlayCircleIcon },
   ],
   student: [
-    { href: '/dashboard', label: 'Dashboard', icon: HomeIcon },
-    { href: '/ai-chat', label: 'AI Chat', icon: ChatIcon },
-    { href: '/subjects', label: 'Subjects', icon: GridIcon },
-    { href: '/assignments', label: 'Assignments', icon: ClipboardIcon },
-    { href: '/exams', label: 'Exams', icon: FileTextIcon },
-    { href: '/performance', label: 'Performance', icon: TrendingUpIcon },
-    { href: '/timetable', label: 'Timetable', icon: CalendarIcon },
-    { href: '/learning-videos', label: 'Learning Videos', icon: PlayCircleIcon },
+    { href: '/dashboard', labelKey: 'nav.dashboard', icon: HomeIcon },
+    { href: '/ai-chat', labelKey: 'nav.aiChat', icon: ChatIcon },
+    { href: '/subjects', labelKey: 'nav.subjects', icon: GridIcon },
+    { href: '/assignments', labelKey: 'nav.assignments', icon: ClipboardIcon },
+    { href: '/exams', labelKey: 'nav.exams', icon: FileTextIcon },
+    { href: '/performance', labelKey: 'nav.performance', icon: TrendingUpIcon },
+    { href: '/timetable', labelKey: 'nav.timetable', icon: CalendarIcon },
+    { href: '/learning-videos', labelKey: 'nav.learningVideos', icon: PlayCircleIcon },
   ],
 };
 
 export default function Sidebar({ role, onNavigate }: { role: Role; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const items = [...NAV[role], { href: '/settings', label: 'Settings', icon: SettingsIcon }];
+  const { t } = useLanguage();
+  const items = [...NAV[role], { href: '/settings', labelKey: 'nav.settings', icon: SettingsIcon }];
 
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border-soft bg-card px-4 py-6">
@@ -85,7 +87,7 @@ export default function Sidebar({ role, onNavigate }: { role: Role; onNavigate?:
               }`}
             >
               <Icon className="h-[18px] w-[18px] shrink-0" />
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           );
         })}

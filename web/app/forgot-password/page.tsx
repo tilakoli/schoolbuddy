@@ -3,11 +3,13 @@
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import ConfigNotice from '@/components/ConfigNotice';
+import { useLanguage } from '@/components/LanguageProvider';
 import { APP_CONFIG } from '@/constants/config';
 import { getErrorMessage } from '@/lib/errors';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 
 export default function ForgotPasswordPage() {
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -23,7 +25,7 @@ export default function ForgotPasswordPage() {
     try {
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim());
       if (resetError) throw resetError;
-      setMessage('Password reset instructions have been sent if an account exists for that email.');
+      setMessage(t('auth.resetSuccessMessage'));
     } catch (cause) {
       setError(getErrorMessage(cause, 'Unable to send reset instructions.'));
     } finally {
@@ -41,11 +43,9 @@ export default function ForgotPasswordPage() {
 
       <main className="flex flex-1 items-center justify-center px-6 py-16">
         <div className="animate-fade-up w-full max-w-sm">
-          <p className="text-xs font-bold tracking-[0.15em] text-primary">ACCOUNT RECOVERY</p>
-          <h1 className="mt-2 text-3xl font-bold text-foreground">Reset your password.</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Enter your email and we&apos;ll send you recovery instructions.
-          </p>
+          <p className="text-xs font-bold tracking-[0.15em] text-primary">{t('auth.accountRecoveryEyebrow')}</p>
+          <h1 className="mt-2 text-3xl font-bold text-foreground">{t('auth.resetTitle')}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{t('auth.resetSubtitle')}</p>
 
           {!isSupabaseConfigured && (
             <div className="mt-6">
@@ -56,7 +56,7 @@ export default function ForgotPasswordPage() {
           <form onSubmit={handleReset} className="mt-8 space-y-4">
             <div>
               <label className="text-sm font-medium text-foreground" htmlFor="email">
-                Email
+                {t('auth.email')}
               </label>
               <input
                 id="email"
@@ -77,11 +77,11 @@ export default function ForgotPasswordPage() {
               disabled={!isSupabaseConfigured || !email.trim() || loading}
               className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground disabled:opacity-50"
             >
-              {loading ? 'Sending…' : 'Send reset instructions'}
+              {loading ? t('auth.sending') : t('auth.sendReset')}
             </button>
 
             <Link href="/login" className="block text-center text-sm font-semibold text-primary">
-              Back to sign in
+              {t('auth.backToSignIn')}
             </Link>
           </form>
         </div>

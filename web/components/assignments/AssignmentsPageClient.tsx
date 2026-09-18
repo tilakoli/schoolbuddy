@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { ClipboardIcon, SparkleIcon } from '@/components/icons';
+import { useLanguage } from '@/components/LanguageProvider';
 import EmptyState from '@/components/shared/EmptyState';
 import FormCard from '@/components/shared/FormCard';
 import { createClient } from '@/lib/supabase/client';
@@ -28,6 +29,7 @@ export default function AssignmentsPageClient({
   initialAssignments: AssignmentWithClass[];
   classOptions?: { id: string; name: string }[];
 }) {
+  const { t } = useLanguage();
   const [assignments, setAssignments] = useState(initialAssignments);
   const [showCreate, setShowCreate] = useState(false);
   const [tab, setTab] = useState<CreateTab>('manual');
@@ -67,9 +69,9 @@ export default function AssignmentsPageClient({
     <div>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Assignments</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t('nav.assignments')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {classOptions ? 'Across all your classes' : 'Across all your subjects'}
+            {classOptions ? t('assignment.acrossAllClasses') : t('assignment.acrossAllSubjects')}
           </p>
         </div>
         {classOptions && classOptions.length > 0 && (
@@ -77,7 +79,7 @@ export default function AssignmentsPageClient({
             onClick={() => setShowCreate((v) => !v)}
             className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground"
           >
-            {showCreate ? 'Close' : 'New assignment'}
+            {showCreate ? t('form.close') : t('assignment.newAssignment')}
           </button>
         )}
       </div>
@@ -92,7 +94,7 @@ export default function AssignmentsPageClient({
                 tab === 'manual' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
               }`}
             >
-              Manual
+              {t('assignment.manual')}
             </button>
             <button
               type="button"
@@ -102,7 +104,7 @@ export default function AssignmentsPageClient({
               }`}
             >
               <SparkleIcon width={13} height={13} className="text-accent" />
-              Generate with AI
+              {t('assignment.generateWithAi')}
             </button>
           </div>
 
@@ -111,7 +113,7 @@ export default function AssignmentsPageClient({
           {tab === 'generate' &&
             (loadingMaterials ? (
               <FormCard>
-                <p className="text-sm text-muted-foreground">Loading materials…</p>
+                <p className="text-sm text-muted-foreground">{t('assignment.loadingMaterials')}</p>
               </FormCard>
             ) : (
               <GenerateAssignmentForm
@@ -122,7 +124,7 @@ export default function AssignmentsPageClient({
                 onClose={() => setShowCreate(false)}
                 classPicker={
                   <div>
-                    <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Class</label>
+                    <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('form.class')}</label>
                     <select
                       value={generateClassId}
                       onChange={(event) => setGenerateClassId(event.target.value)}
@@ -143,7 +145,7 @@ export default function AssignmentsPageClient({
 
       <div className="mt-6 space-y-2">
         {assignments.length === 0 && (
-          <EmptyState icon={ClipboardIcon} title="No assignments yet" description="Create one manually, or generate a test from your uploaded materials." />
+          <EmptyState icon={ClipboardIcon} title={t('assignment.noAssignmentsYetShort')} description={t('assignment.noAssignmentsYetDesc')} />
         )}
         {assignments.map((assignment) => (
           <AssignmentListItem key={assignment.id} assignment={assignment} className={assignment.className} />

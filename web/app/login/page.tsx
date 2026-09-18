@@ -4,12 +4,14 @@ import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ConfigNotice from '@/components/ConfigNotice';
+import { useLanguage } from '@/components/LanguageProvider';
 import { APP_CONFIG } from '@/constants/config';
 import { getErrorMessage } from '@/lib/errors';
 import { createClient, isSupabaseConfigured } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -47,11 +49,9 @@ export default function LoginPage() {
 
       <main className="flex flex-1 items-center justify-center px-6 py-16">
         <div className="animate-fade-up w-full max-w-sm">
-          <p className="text-xs font-bold tracking-[0.15em] text-primary">WELCOME BACK</p>
-          <h1 className="mt-2 text-3xl font-bold text-foreground">Sign in to {APP_CONFIG.name}.</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Use the email and password your school administrator gave you.
-          </p>
+          <p className="text-xs font-bold tracking-[0.15em] text-primary">{t('auth.welcomeBackEyebrow')}</p>
+          <h1 className="mt-2 text-3xl font-bold text-foreground">{t('auth.signInTitle', { name: APP_CONFIG.name })}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">{t('auth.signInSubtitle')}</p>
 
           {!isSupabaseConfigured && (
             <div className="mt-6">
@@ -62,7 +62,7 @@ export default function LoginPage() {
           <form onSubmit={handleLogin} className="mt-8 space-y-4">
             <div>
               <label className="text-sm font-medium text-foreground" htmlFor="email">
-                Email
+                {t('auth.email')}
               </label>
               <input
                 id="email"
@@ -76,7 +76,7 @@ export default function LoginPage() {
             </div>
             <div>
               <label className="text-sm font-medium text-foreground" htmlFor="password">
-                Password
+                {t('auth.password')}
               </label>
               <input
                 id="password"
@@ -92,7 +92,7 @@ export default function LoginPage() {
 
             <div className="flex justify-end">
               <Link href="/forgot-password" className="text-sm text-primary">
-                Forgot password?
+                {t('auth.forgotPassword')}
               </Link>
             </div>
 
@@ -101,7 +101,7 @@ export default function LoginPage() {
               disabled={!isSupabaseConfigured || !email.trim() || !password || loading}
               className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground disabled:opacity-50"
             >
-              {loading ? 'Signing in…' : 'Sign in'}
+              {loading ? t('auth.signingIn') : t('auth.signIn')}
             </button>
           </form>
         </div>

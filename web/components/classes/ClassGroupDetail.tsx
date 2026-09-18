@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
+import { useLanguage } from '@/components/LanguageProvider';
 import { createClient } from '@/lib/supabase/client';
 import RosterManager, { type StudentOption } from '@/components/classes/RosterManager';
 import type { MaterialRow } from '@/components/curriculum/SubjectMaterials';
@@ -26,9 +27,19 @@ const STATUS_STYLE: Record<MaterialRow['status'], string> = {
   extracted: 'bg-success/10 text-success',
   failed: 'bg-danger/10 text-danger',
 };
+const STATUS_LABEL_KEY: Record<MaterialRow['status'], string> = {
+  pending: 'materials.statusPending',
+  extracted: 'materials.statusExtracted',
+  failed: 'materials.statusFailed',
+};
 
 const TABS = ['Students', 'Subjects', 'Materials'] as const;
 type Tab = (typeof TABS)[number];
+const TAB_LABEL_KEY: Record<Tab, string> = {
+  Students: 'classes.tabStudents',
+  Subjects: 'classes.tabSubjects',
+  Materials: 'classes.tabMaterials',
+};
 
 export default function ClassGroupDetail({
   groupId,
@@ -49,6 +60,7 @@ export default function ClassGroupDetail({
   materials: MaterialRow[];
   schoolId: string;
 }) {
+  const { t } = useLanguage();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('Students');
   const [offeringList, setOfferingList] = useState(offerings);
@@ -59,7 +71,7 @@ export default function ClassGroupDetail({
   const [deleteError, setDeleteError] = useState<string>();
 
   const deleteGroup = async () => {
-    if (!window.confirm(`Delete "${groupName}" and all its subjects, roster, assignments, and materials? This can't be undone.`)) return;
+    if (!window.confirm(t('classes.deleteClassConfirm', { name: groupName }))) return;
     const supabase = createClient();
     if (!supabase) return;
     setDeleting(true);
@@ -80,7 +92,7 @@ export default function ClassGroupDetail({
   };
 
   const removeOffering = async (offering: OfferingRow) => {
-    if (!window.confirm(`Remove ${offering.subjectName} from this class? Its assignments and materials will be deleted too.`)) return;
+    if (!window.confirm(t('classes.removeSubjectConfirm', { subject: offering.subjectName }))) return;
     const supabase = createClient();
     if (!supabase) return;
     try {
@@ -102,32 +114,32 @@ export default function ClassGroupDetail({
     <div>
       <div className="flex items-center justify-between">
         <Link href="/classes" className="text-sm font-medium text-primary">
-          ← Classes
+          {t('classes.backToClasses')}
         </Link>
         <button
           onClick={deleteGroup}
           disabled={deleting}
           className="rounded-lg border border-danger/30 px-3 py-1.5 text-xs font-semibold text-danger hover:bg-danger/10 disabled:opacity-50"
         >
-          {deleting ? 'Deleting…' : 'Delete class'}
+          {deleting ? t('classes.deleting') : t('classes.deleteClass')}
         </button>
       </div>
       <h1 className="mt-4 text-2xl font-bold text-foreground">{groupName}</h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        {offeringList.map((o) => o.subjectName).join(' · ') || 'No subjects yet'}
+        {offeringList.map((o) => o.subjectName).join(' · ') || t('classes.noSubjectsYet')}
       </p>
       {deleteError && <p className="mt-2 text-sm text-danger">{deleteError}</p>}
 
       <div className="mt-6 flex gap-1 rounded-lg bg-secondary p-1">
-        {TABS.map((t) => (
+        {TABS.map((tabOption) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={tabOption}
+            onClick={() => setTab(tabOption)}
             className={`flex-1 rounded-md px-3 py-1.5 text-sm font-semibold ${
-              tab === t ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+              tab === tabOption ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
             }`}
           >
-            {t}
+            {t(TAB_LABEL_KEY[tabOption])}
           </button>
         ))}
       </div>
@@ -138,12 +150,12 @@ export default function ClassGroupDetail({
         {tab === 'Subjects' && (
           <div>
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-foreground">Subjects</h2>
+              <h2 className="text-lg font-bold text-foreground">{t('classes.tabSubjects')}</h2>
               <button
                 onClick={() => setShowAddSubject((v) => !v)}
                 className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
               >
-                Assign subject
+                {t('classes.assignSubject')}
               </button>
             </div>
 
@@ -160,7 +172,7 @@ export default function ClassGroupDetail({
             )}
 
             <div className="mt-4 space-y-2">
-              {offeringList.length === 0 && <p className="text-sm text-muted-foreground">No subjects assigned yet.</p>}
+              {offeringList.length === 0 && <p className="text-sm text-muted-foreground">{t('classes.noSubjectsAssignedYet')}</p>}
               {offeringList.map((offering) => (
                 <div
                   key={offering.id}
@@ -169,14 +181,14 @@ export default function ClassGroupDetail({
                   <Link href={`/classes/${groupId}/subjects/${offering.id}`} className="min-w-0 flex-1 hover:opacity-80">
                     <p className="truncate font-semibold text-foreground">{offering.subjectName}</p>
                     <p className="mt-1 truncate text-sm text-muted-foreground">
-                      {[offering.teacherName, offering.period, offering.room].filter(Boolean).join(' · ') || 'No details yet'}
+                      {[offering.teacherName, offering.period, offering.room].filter(Boolean).join(' · ') || t('classes.noDetailsYet')}
                     </p>
                   </Link>
                   <button
                     onClick={() => removeOffering(offering)}
                     className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/10"
                   >
-                    Remove
+                    {t('form.remove')}
                   </button>
                 </div>
               ))}
@@ -186,10 +198,10 @@ export default function ClassGroupDetail({
 
         {tab === 'Materials' && (
           <div>
-            <h2 className="text-lg font-bold text-foreground">Materials</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Uploaded from each subject&apos;s own page, shown here for this class.</p>
+            <h2 className="text-lg font-bold text-foreground">{t('classes.tabMaterials')}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{t('classes.materialsFromEachSubject')}</p>
             <div className="mt-4 space-y-2">
-              {materialList.length === 0 && <p className="text-sm text-muted-foreground">No materials uploaded yet.</p>}
+              {materialList.length === 0 && <p className="text-sm text-muted-foreground">{t('classes.noMaterialsUploadedYet')}</p>}
               {materialList.map((material) => (
                 <div key={material.id} className="rounded-xl border border-border bg-card shadow-sm p-4">
                   <div className="flex items-center justify-between gap-3">
@@ -199,8 +211,8 @@ export default function ClassGroupDetail({
                         {[material.className, material.chapter].filter(Boolean).join(' · ')}
                       </p>
                     </div>
-                    <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-semibold capitalize ${STATUS_STYLE[material.status]}`}>
-                      {material.status}
+                    <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${STATUS_STYLE[material.status]}`}>
+                      {t(STATUS_LABEL_KEY[material.status])}
                     </span>
                   </div>
                   {material.status === 'extracted' && material.summary && (
@@ -214,7 +226,7 @@ export default function ClassGroupDetail({
                       onClick={() => setExpandedMaterialId(expandedMaterialId === material.id ? null : material.id)}
                       className="mt-2 text-xs font-semibold text-primary"
                     >
-                      {expandedMaterialId === material.id ? 'Hide extracted text' : 'View extracted text'}
+                      {expandedMaterialId === material.id ? t('classes.hideExtractedText') : t('classes.viewExtractedText')}
                     </button>
                   )}
                   {expandedMaterialId === material.id && material.extracted_text && (
@@ -243,6 +255,7 @@ function AddSubjectForm({
   subjects: SubjectOption[];
   onCreated: (offerings: OfferingRow[]) => void;
 }) {
+  const { t } = useLanguage();
   const [subjectIds, setSubjectIds] = useState<string[]>([]);
   const [period, setPeriod] = useState('');
   const [room, setRoom] = useState('');
@@ -298,7 +311,7 @@ function AddSubjectForm({
   if (subjects.length === 0) {
     return (
       <p className="mt-4 text-sm text-muted-foreground">
-        No more subjects to assign — every subject in the school is already taught here, or none have been onboarded yet.
+        {t('classes.noMoreSubjectsToAssign')}
       </p>
     );
   }
@@ -317,14 +330,14 @@ function AddSubjectForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <input
           type="text"
-          placeholder="Period / time"
+          placeholder={t('form.period')}
           value={period}
           onChange={(event) => setPeriod(event.target.value)}
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
         />
         <input
           type="text"
-          placeholder="Room"
+          placeholder={t('form.room')}
           value={room}
           onChange={(event) => setRoom(event.target.value)}
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
@@ -336,7 +349,11 @@ function AddSubjectForm({
         disabled={loading || subjectIds.length === 0}
         className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
       >
-        {loading ? 'Assigning…' : `Assign ${subjectIds.length > 1 ? `${subjectIds.length} subjects` : 'subject'}`}
+        {loading
+          ? t('classes.assigning')
+          : subjectIds.length > 1
+            ? t('classes.assignSubjectCount', { count: String(subjectIds.length) })
+            : t('classes.assignSubjectSingular')}
       </button>
     </form>
   );

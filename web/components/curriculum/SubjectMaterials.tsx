@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import { useLanguage } from '@/components/LanguageProvider';
 import { createClient } from '@/lib/supabase/client';
 
 export interface MaterialRow {
@@ -20,6 +21,11 @@ const STATUS_STYLE: Record<MaterialRow['status'], string> = {
   extracted: 'bg-success/10 text-success',
   failed: 'bg-danger/10 text-danger',
 };
+const STATUS_LABEL_KEY: Record<MaterialRow['status'], string> = {
+  pending: 'materials.statusPending',
+  extracted: 'materials.statusExtracted',
+  failed: 'materials.statusFailed',
+};
 
 const MAX_SINGLE_PDF_BYTES = 15 * 1024 * 1024;
 const MAX_BATCH_BYTES = 25 * 1024 * 1024;
@@ -33,6 +39,7 @@ export default function SubjectMaterials({
   initialMaterials: MaterialRow[];
   teacherId: string;
 }) {
+  const { t } = useLanguage();
   const [materials, setMaterials] = useState(initialMaterials);
   const [showUpload, setShowUpload] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -82,12 +89,12 @@ export default function SubjectMaterials({
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-bold text-foreground">Materials</h2>
+        <h2 className="text-lg font-bold text-foreground">{t('materials.title')}</h2>
         <button
           onClick={() => setShowUpload((v) => !v)}
           className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-secondary"
         >
-          Upload material
+          {t('materials.uploadMaterial')}
         </button>
       </div>
 
@@ -106,7 +113,7 @@ export default function SubjectMaterials({
       {error && <p className="mt-4 text-sm text-danger">{error}</p>}
 
       <div className="mt-4 space-y-2">
-        {materials.length === 0 && <p className="text-sm text-muted-foreground">No materials uploaded yet.</p>}
+        {materials.length === 0 && <p className="text-sm text-muted-foreground">{t('materials.noMaterialsUploadedYet')}</p>}
         {materials.map((material) => (
           <div key={material.id} className="rounded-xl border border-border bg-card shadow-sm p-4">
             <div className="flex items-center justify-between gap-3">
@@ -114,8 +121,8 @@ export default function SubjectMaterials({
                 <p className="truncate font-semibold text-foreground">{material.title}</p>
                 {material.chapter && <p className="mt-1 truncate text-xs text-muted-foreground">{material.chapter}</p>}
               </div>
-              <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-semibold capitalize ${STATUS_STYLE[material.status]}`}>
-                {material.status}
+              <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${STATUS_STYLE[material.status]}`}>
+                {t(STATUS_LABEL_KEY[material.status])}
               </span>
             </div>
 
@@ -130,7 +137,7 @@ export default function SubjectMaterials({
                 onClick={() => setExpandedId(expandedId === material.id ? null : material.id)}
                 className="mt-2 text-xs font-semibold text-primary"
               >
-                {expandedId === material.id ? 'Hide extracted text' : 'View extracted text'}
+                {expandedId === material.id ? t('materials.hideExtractedText') : t('materials.viewExtractedText')}
               </button>
             )}
             {expandedId === material.id && material.extracted_text && (
@@ -146,7 +153,7 @@ export default function SubjectMaterials({
                   disabled={busyId === material.id}
                   className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50"
                 >
-                  {busyId === material.id ? 'Retrying…' : 'Retry extraction'}
+                  {busyId === material.id ? t('materials.retrying') : t('materials.retryExtraction')}
                 </button>
               )}
               <button
@@ -154,7 +161,7 @@ export default function SubjectMaterials({
                 disabled={busyId === material.id}
                 className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-danger hover:bg-danger/10 disabled:opacity-50"
               >
-                {busyId === material.id ? 'Deleting…' : 'Delete'}
+                {busyId === material.id ? t('materials.deleting') : t('materials.delete')}
               </button>
             </div>
           </div>
@@ -175,6 +182,7 @@ function UploadForm({
   onCreated: (material: MaterialRow) => void;
   onUpdated: (material: MaterialRow) => void;
 }) {
+  const { t } = useLanguage();
   const [title, setTitle] = useState('');
   const [chapter, setChapter] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -277,14 +285,14 @@ function UploadForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <input
           type="text"
-          placeholder="Title"
+          placeholder={t('form.title')}
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
         />
         <input
           type="text"
-          placeholder="Chapter (optional)"
+          placeholder={t('materials.chapterOptional')}
           value={chapter}
           onChange={(event) => setChapter(event.target.value)}
           className="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
@@ -298,8 +306,8 @@ function UploadForm({
         className="block w-full text-sm text-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground"
       />
       <p className="text-xs text-muted-foreground">
-        One PDF (15MB max), or several photos of pages (e.g. a notebook) — those get combined into one material.
-        {files.length > 1 && ` ${files.length} files selected.`}
+        {t('materials.uploadHelp')}
+        {files.length > 1 && ` ${t('materials.filesSelected', { count: String(files.length) })}`}
       </p>
       {error && <p className="text-sm text-danger">{error}</p>}
       <button
@@ -307,7 +315,7 @@ function UploadForm({
         disabled={!!stage || files.length === 0 || !title.trim()}
         className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
       >
-        {stage === 'uploading' ? 'Uploading…' : stage === 'extracting' ? 'Extracting…' : 'Upload'}
+        {stage === 'uploading' ? t('materials.uploading') : stage === 'extracting' ? t('materials.extracting') : t('materials.upload')}
       </button>
     </form>
   );

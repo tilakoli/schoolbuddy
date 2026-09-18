@@ -1,11 +1,13 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import { getServerT } from '@/lib/i18n/server';
 import { getUserAndProfile } from '@/lib/supabase/profile';
 import { createClient } from '@/lib/supabase/server';
 
 export default async function StudentsPage() {
   const { user, profile } = await getUserAndProfile();
   if (profile?.role !== 'teacher') redirect('/dashboard');
+  const t = await getServerT();
 
   const supabase = await createClient();
   const { data: offerings } = supabase
@@ -29,12 +31,12 @@ export default async function StudentsPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
-      <h1 className="text-2xl font-bold text-foreground">Students</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Students across your classes</p>
+      <h1 className="text-2xl font-bold text-foreground">{t('students.title')}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">{t('students.subtitleAcrossClasses')}</p>
 
       <div className="mt-8 space-y-2">
         {rows.length === 0 && (
-          <p className="text-sm text-muted-foreground">No students enrolled yet — add them from a class&apos;s roster.</p>
+          <p className="text-sm text-muted-foreground">{t('students.noStudentsYet')}</p>
         )}
         {rows.map((row) => (
           <Link

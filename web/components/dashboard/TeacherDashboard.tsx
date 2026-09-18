@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { getEffectiveStatus } from '@/components/assignments/types';
 import DashboardBanner, { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
 import { fetchTeacherClassGroups } from '@/lib/classGroups';
+import { getServerT } from '@/lib/i18n/server';
 import { createClient } from '@/lib/supabase/server';
 
 function formatDue(dueAt: string | null): { label: string; status: 'danger' | 'warning' | 'info' } {
@@ -19,6 +20,7 @@ const STATUS_COLOR = { danger: 'bg-danger', warning: 'bg-warning', info: 'bg-inf
 
 export default async function TeacherDashboard({ name, userId }: { name: string; userId: string }) {
   const supabase = await createClient();
+  const t = await getServerT();
 
   const classes = supabase ? await fetchTeacherClassGroups(supabase, userId) : [];
 
@@ -57,10 +59,10 @@ export default async function TeacherDashboard({ name, userId }: { name: string;
   }).length;
 
   const stats = [
-    { label: 'Classes', value: String(classes?.length ?? 0) },
-    { label: 'Students', value: String(studentCount) },
-    { label: 'Due this week', value: String(dueSoonCount) },
-    { label: 'Total assignments', value: String(assignments?.length ?? 0) },
+    { label: t('dashboard.statClasses'), value: String(classes?.length ?? 0) },
+    { label: t('dashboard.statStudents'), value: String(studentCount) },
+    { label: t('dashboard.statDueThisWeek'), value: String(dueSoonCount) },
+    { label: t('dashboard.statTotalAssignments'), value: String(assignments?.length ?? 0) },
   ];
 
   const upcoming = (assignments ?? []).slice(0, 4);
@@ -69,21 +71,21 @@ export default async function TeacherDashboard({ name, userId }: { name: string;
   return (
     <>
       <DashboardBanner
-        eyebrow="Welcome back"
+        eyebrow={t('dashboard.welcomeBack')}
         name={name}
-        subtitle={subjectRow?.name ? `${subjectRow.name} teacher` : undefined}
+        subtitle={subjectRow?.name ? t('dashboard.subjectTeacherSuffix', { subject: subjectRow.name }) : undefined}
         summary={
           classCount > 0
-            ? `Teaching ${studentCount} student${studentCount === 1 ? '' : 's'} across ${classCount} class${classCount === 1 ? '' : 'es'}.`
-            : 'Your classes will show up here once admin assigns your subject to one.'
+            ? t('dashboard.teachingSummary', { students: String(studentCount), classes: String(classCount) })
+            : t('dashboard.classesWillShowUp')
         }
         actions={
           <>
             <Link href="/classes" className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground">
-              View classes
+              {t('dashboard.viewClasses')}
             </Link>
             <Link href="/assignments" className="rounded-lg bg-white/15 px-4 py-2 text-sm font-semibold text-primary-foreground">
-              View assignments
+              {t('dashboard.viewAssignments')}
             </Link>
           </>
         }
@@ -101,11 +103,9 @@ export default async function TeacherDashboard({ name, userId }: { name: string;
         })}
       </div>
 
-      <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">Your classes</h2>
+      <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">{t('dashboard.yourClasses')}</h2>
       <div className="space-y-2">
-        {(classes ?? []).length === 0 && (
-          <p className="text-sm text-muted-foreground">No classes yet — admin will assign your subject to one.</p>
-        )}
+        {(classes ?? []).length === 0 && <p className="text-sm text-muted-foreground">{t('dashboard.noClassesYetTeacher')}</p>}
         {classes.map((classItem, i) => {
           const tile = TILE_PALETTE[i % TILE_PALETTE.length];
           return (
@@ -128,9 +128,9 @@ export default async function TeacherDashboard({ name, userId }: { name: string;
         })}
       </div>
 
-      <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">Upcoming assignments</h2>
+      <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">{t('dashboard.upcomingAssignments')}</h2>
       <div className="space-y-2">
-        {upcoming.length === 0 && <p className="text-sm text-muted-foreground">No assignments yet.</p>}
+        {upcoming.length === 0 && <p className="text-sm text-muted-foreground">{t('dashboard.noAssignmentsYet')}</p>}
         {upcoming.map((assignment) => {
           const due = formatDue(assignment.due_at);
           return (
