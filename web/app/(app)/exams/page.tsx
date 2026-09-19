@@ -1,5 +1,7 @@
 import ComingSoon from '@/components/ComingSoon';
+import { getServerT } from '@/lib/i18n/server';
 
-export default function ExamsPage() {
-  return <ComingSoon title="Exams" description="Schedule and manage formal exams here — not built yet." />;
+export default async function ExamsPage() {
+  const t = await getServerT();
+  return <ComingSoon title={t('nav.exams')} description={t('comingSoon.examsDesc')} />;
 }

@@ -4,6 +4,7 @@ import { getEffectiveStatus } from '@/components/assignments/types';
 import { CheckIcon, ClipboardIcon, TrendingUpIcon } from '@/components/icons';
 import EmptyState from '@/components/shared/EmptyState';
 import StatTile from '@/components/shared/StatTile';
+import { getServerT } from '@/lib/i18n/server';
 import { getUserAndProfile } from '@/lib/supabase/profile';
 import { createClient } from '@/lib/supabase/server';
 
@@ -53,6 +54,7 @@ function computeStats(rows: SubmissionRow[]) {
 export default async function PerformancePage() {
   const { user, profile } = await getUserAndProfile();
   if (!profile || (profile.role !== 'teacher' && profile.role !== 'student')) redirect('/dashboard');
+  const t = await getServerT();
 
   const supabase = await createClient();
   if (!supabase) redirect('/dashboard');
@@ -78,19 +80,19 @@ export default async function PerformancePage() {
 
     return (
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
-        <h1 className="text-2xl font-bold text-foreground">Performance</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Your graded assignments and tests, across all subjects.</p>
+        <h1 className="text-2xl font-bold text-foreground">{t('nav.performance')}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t('performance.studentSubtitle')}</p>
 
         <div className="mt-6 grid grid-cols-3 gap-3">
-          <StatTile icon={TrendingUpIcon} tone="primary" value={avgPercent != null ? `${avgPercent}%` : '—'} label="Average score" />
-          <StatTile icon={CheckIcon} tone="success" value={passRate != null ? `${passRate}%` : '—'} label="Pass rate" style={{ animationDelay: '0.05s' }} />
-          <StatTile icon={ClipboardIcon} tone="info" value={String(gradedCount)} label="Graded" style={{ animationDelay: '0.1s' }} />
+          <StatTile icon={TrendingUpIcon} tone="primary" value={avgPercent != null ? `${avgPercent}%` : '—'} label={t('students.averageScore')} />
+          <StatTile icon={CheckIcon} tone="success" value={passRate != null ? `${passRate}%` : '—'} label={t('students.passRate')} style={{ animationDelay: '0.05s' }} />
+          <StatTile icon={ClipboardIcon} tone="info" value={String(gradedCount)} label={t('students.graded')} style={{ animationDelay: '0.1s' }} />
         </div>
 
-        <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">History</h2>
+        <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">{t('performance.history')}</h2>
         <div className="space-y-2">
           {submissions.length === 0 && (
-            <EmptyState icon={ClipboardIcon} title="No submissions yet" description="Graded work will show up here once a teacher marks it." />
+            <EmptyState icon={ClipboardIcon} title={t('performance.noSubmissionsYet')} description={t('performance.noSubmissionsStudentDesc')} />
           )}
           {submissions.map((s) => (
             <Link
@@ -99,7 +101,7 @@ export default async function PerformancePage() {
               className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card shadow-sm p-4 hover:border-primary"
             >
               <div className="min-w-0">
-                <p className="truncate font-semibold text-foreground">{s.assignments?.title ?? 'Assignment'}</p>
+                <p className="truncate font-semibold text-foreground">{s.assignments?.title ?? t('performance.assignmentFallback')}</p>
                 <p className="mt-1 truncate text-xs text-muted-foreground">
                   {[classLabels.get(s.assignments?.class_id ?? ''), formatDate(s.graded_at)].filter(Boolean).join(' · ')}
                 </p>
@@ -112,12 +114,12 @@ export default async function PerformancePage() {
                     </p>
                     {s.passed !== null && (
                       <span className={`text-xs font-semibold ${s.passed ? 'text-success' : 'text-danger'}`}>
-                        {s.passed ? 'Pass' : 'Fail'}
+                        {s.passed ? t('assignment.pass') : t('assignment.fail')}
                       </span>
                     )}
                   </>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Awaiting grade</p>
+                  <p className="text-xs text-muted-foreground">{t('students.awaitingGrade')}</p>
                 )}
               </div>
             </Link>
@@ -164,25 +166,25 @@ export default async function PerformancePage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
-      <h1 className="text-2xl font-bold text-foreground">Performance</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Graded assignments and tests, across your classes.</p>
+      <h1 className="text-2xl font-bold text-foreground">{t('nav.performance')}</h1>
+      <p className="mt-1 text-sm text-muted-foreground">{t('performance.teacherSubtitle')}</p>
 
       <div className="mt-6 grid grid-cols-3 gap-3">
-        <StatTile icon={TrendingUpIcon} tone="primary" value={avgPercent != null ? `${avgPercent}%` : '—'} label="Average score" />
-        <StatTile icon={CheckIcon} tone="success" value={passRate != null ? `${passRate}%` : '—'} label="Pass rate" style={{ animationDelay: '0.05s' }} />
-        <StatTile icon={ClipboardIcon} tone="info" value={String(gradedCount)} label="Graded" style={{ animationDelay: '0.1s' }} />
+        <StatTile icon={TrendingUpIcon} tone="primary" value={avgPercent != null ? `${avgPercent}%` : '—'} label={t('students.averageScore')} />
+        <StatTile icon={CheckIcon} tone="success" value={passRate != null ? `${passRate}%` : '—'} label={t('students.passRate')} style={{ animationDelay: '0.05s' }} />
+        <StatTile icon={ClipboardIcon} tone="info" value={String(gradedCount)} label={t('students.graded')} style={{ animationDelay: '0.1s' }} />
       </div>
 
       {perClass.length > 0 && (
         <>
-          <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">By class</h2>
+          <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">{t('performance.byClass')}</h2>
           <div className="space-y-2">
             {perClass.map((c) => (
               <div key={c.classId} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card shadow-sm p-4">
                 <p className="font-semibold text-foreground">{c.label}</p>
                 <p className="text-sm text-muted-foreground">
-                  {c.avgPercent != null ? `${c.avgPercent}% avg` : 'No grades yet'}
-                  {c.passRate != null ? ` · ${c.passRate}% pass` : ''}
+                  {c.avgPercent != null ? t('performance.avgPercent', { percent: String(c.avgPercent) }) : t('performance.noGradesYet')}
+                  {c.passRate != null ? ` · ${t('performance.passPercent', { percent: String(c.passRate) })}` : ''}
                 </p>
               </div>
             ))}
@@ -190,10 +192,10 @@ export default async function PerformancePage() {
         </>
       )}
 
-      <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">Recent submissions</h2>
+      <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">{t('performance.recentSubmissions')}</h2>
       <div className="space-y-2">
         {submissions.length === 0 && (
-          <EmptyState icon={ClipboardIcon} title="No submissions yet" description="Once students submit and you grade their work, it'll show up here." />
+          <EmptyState icon={ClipboardIcon} title={t('performance.noSubmissionsYet')} description={t('performance.noSubmissionsTeacherDesc')} />
         )}
         {submissions.slice(0, 30).map((s) => (
           <Link
@@ -202,7 +204,7 @@ export default async function PerformancePage() {
             className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card shadow-sm p-4 hover:border-primary"
           >
             <div className="min-w-0">
-              <p className="truncate font-semibold text-foreground">{s.assignments?.title ?? 'Assignment'}</p>
+              <p className="truncate font-semibold text-foreground">{s.assignments?.title ?? t('performance.assignmentFallback')}</p>
               <p className="mt-1 truncate text-xs text-muted-foreground">
                 {studentNameById.get(s.student_id ?? '')} ·{' '}
                 {[classLabels.get(s.assignments?.class_id ?? ''), formatDate(s.graded_at)].filter(Boolean).join(' · ')}
@@ -216,12 +218,12 @@ export default async function PerformancePage() {
                   </p>
                   {s.passed !== null && (
                     <span className={`text-xs font-semibold ${s.passed ? 'text-success' : 'text-danger'}`}>
-                      {s.passed ? 'Pass' : 'Fail'}
+                      {s.passed ? t('assignment.pass') : t('assignment.fail')}
                     </span>
                   )}
                 </>
               ) : (
-                <p className="text-xs text-muted-foreground">Awaiting grade</p>
+                <p className="text-xs text-muted-foreground">{t('students.awaitingGrade')}</p>
               )}
             </div>
           </Link>

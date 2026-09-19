@@ -131,6 +131,9 @@
     "easy": "Easy",
     "medium": "Medium",
     "expert": "Expert",
+    "generateMcq": "Multiple choice",
+    "generateFreeform": "Written response",
+    "suggestedRubric": "Suggested rubric — edit before publishing",
     "rubricOptional": "Rubric (optional)",
     "addRubric": "Add rubric",
     "removeRubric": "Remove rubric",
@@ -291,9 +294,25 @@
     "noMatchingStudents": "No matching students."
   },
   "comingSoon": {
-    "label": "Coming soon"
+    "label": "Coming soon",
+    "examsDesc": "Schedule and manage formal exams here — not built yet.",
+    "learningVideosDesc": "Share pre-recorded lectures and reference clips — not built yet."
   },
   "subjects": {
     "subtitle": "Your enrolled subjects this term."
+  },
+  "performance": {
+    "studentSubtitle": "Your graded assignments and tests, across all subjects.",
+    "teacherSubtitle": "Graded assignments and tests, across your classes.",
+    "history": "History",
+    "byClass": "By class",
+    "recentSubmissions": "Recent submissions",
+    "noSubmissionsYet": "No submissions yet",
+    "noSubmissionsStudentDesc": "Graded work will show up here once a teacher marks it.",
+    "noSubmissionsTeacherDesc": "Once students submit and you grade their work, it'll show up here.",
+    "noGradesYet": "No grades yet",
+    "avgPercent": "{percent}% avg",
+    "passPercent": "{percent}% pass",
+    "assignmentFallback": "Assignment"
   }
 }

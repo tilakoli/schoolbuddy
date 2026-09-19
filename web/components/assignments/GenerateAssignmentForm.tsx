@@ -15,10 +15,18 @@ interface DraftQuestion {
   explanation: string;
 }
 
+interface DraftCriterion {
+  id: string;
+  criterion: string;
+  max_points: number;
+}
+
 interface MaterialOption {
   id: string;
   title: string;
 }
+
+type GenerateMode = 'mcq' | 'freeform';
 
 export default function GenerateAssignmentForm({
   classId,
@@ -37,6 +45,7 @@ export default function GenerateAssignmentForm({
   classPicker?: ReactNode;
 }) {
   const { t, language } = useLanguage();
+  const [mode, setMode] = useState<GenerateMode>('mcq');
   const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([]);
   const [questionCount, setQuestionCount] = useState(5);
   const [difficulty, setDifficulty] = useState<Difficulty>('medium');
@@ -47,6 +56,7 @@ export default function GenerateAssignmentForm({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [questions, setQuestions] = useState<DraftQuestion[]>([]);
+  const [rubric, setRubric] = useState<DraftCriterion[]>([]);
   const [passScore, setPassScore] = useState(0);
   const [dueAt, setDueAt] = useState('');
   const [publishing, setPublishing] = useState(false);
@@ -71,20 +81,42 @@ export default function GenerateAssignmentForm({
       const res = await fetch('/api/assignments/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ classId, materialIds: selectedMaterialIds, questionCount, difficulty, guidance, language }),
+        body: JSON.stringify({ classId, materialIds: selectedMaterialIds, mode, questionCount, difficulty, guidance, language }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Generation failed.');
 
       setTitle(data.title);
       setDescription(data.description);
-      setQuestions(data.questions);
-      setPassScore(Math.ceil(data.questions.length / 2));
+      if (mode === 'mcq') {
+        setQuestions(data.questions);
+        setPassScore(Math.ceil(data.questions.length / 2));
+      } else {
+        setRubric(
+          (data.rubric as { criterion: string; max_points: number }[]).map((c) => ({
+            id: crypto.randomUUID(),
+            criterion: c.criterion,
+            max_points: c.max_points,
+          }))
+        );
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Generation failed.');
     } finally {
       setGenerating(false);
     }
+  };
+
+  const updateCriterion = (id: string, patch: Partial<DraftCriterion>) => {
+    setRubric((prev) => prev.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+  };
+
+  const removeCriterion = (id: string) => {
+    setRubric((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  const addCriterion = () => {
+    setRubric((prev) => [...prev, { id: crypto.randomUUID(), criterion: '', max_points: 5 }]);
   };
 
   const updateQuestion = (id: string, patch: Partial<DraftQuestion>) => {
@@ -103,11 +135,36 @@ export default function GenerateAssignmentForm({
 
   const publish = async () => {
     const supabase = createClient();
-    if (!supabase || questions.length === 0 || !title.trim()) return;
+    if (!supabase || !title.trim()) return;
+    if (mode === 'mcq' && questions.length === 0) return;
+    if (mode === 'freeform' && rubric.filter((c) => c.criterion.trim()).length === 0) return;
     setPublishing(true);
     setError(undefined);
 
     try {
+      if (mode === 'freeform') {
+        const usableRubric = rubric
+          .filter((c) => c.criterion.trim())
+          .map((c) => ({ id: c.id, criterion: c.criterion.trim(), max_points: c.max_points }));
+        const { data: assignment, error: insertError } = await supabase
+          .from('assignments')
+          .insert({
+            class_id: classId,
+            title: title.trim(),
+            description: description.trim() || null,
+            assessment_type: 'homework',
+            difficulty,
+            due_at: dueAt ? new Date(dueAt).toISOString() : null,
+            rubric: usableRubric,
+            source_material_ids: selectedMaterialIds,
+          })
+          .select('*')
+          .single();
+        if (insertError || !assignment) throw new Error(insertError?.message || 'Could not save the assignment.');
+        onCreated(assignment as AssignmentRow);
+        return;
+      }
+
       const { data: assignment, error: insertError } = await supabase
         .from('assignments')
         .insert({
@@ -139,13 +196,36 @@ export default function GenerateAssignmentForm({
     }
   };
 
-  const isReviewing = questions.length > 0;
+  const isReviewing = questions.length > 0 || rubric.length > 0;
 
   return (
     <FormCard>
       {!isReviewing && (
         <>
           {classPicker}
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('assignment.assessmentType')}</label>
+            <div className="mt-1 flex gap-1 rounded-lg bg-secondary p-1">
+              <button
+                type="button"
+                onClick={() => setMode('mcq')}
+                className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold ${
+                  mode === 'mcq' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+                }`}
+              >
+                {t('assignment.generateMcq')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('freeform')}
+                className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold ${
+                  mode === 'freeform' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'
+                }`}
+              >
+                {t('assignment.generateFreeform')}
+              </button>
+            </div>
+          </div>
           <div>
             <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('assignment.sourceMaterials')}</label>
             {materials.length === 0 ? (
@@ -167,17 +247,19 @@ export default function GenerateAssignmentForm({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('assignment.numberOfQuestions')}</label>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={questionCount}
-                onChange={(event) => setQuestionCount(Number(event.target.value))}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
-              />
-            </div>
+            {mode === 'mcq' && (
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('assignment.numberOfQuestions')}</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={questionCount}
+                  onChange={(event) => setQuestionCount(Number(event.target.value))}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                />
+              </div>
+            )}
             <div>
               <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('assignment.difficulty')}</label>
               <div className="mt-1 flex gap-2">
@@ -243,64 +325,102 @@ export default function GenerateAssignmentForm({
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
           />
 
-          <div className="space-y-3">
-            {questions.map((question, qi) => (
-              <div key={question.id} className="rounded-lg border border-border p-3">
-                <div className="flex items-start justify-between gap-2">
+          {mode === 'mcq' && (
+            <div className="space-y-3">
+              {questions.map((question, qi) => (
+                <div key={question.id} className="rounded-lg border border-border p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <input
+                      type="text"
+                      value={question.prompt}
+                      onChange={(event) => updateQuestion(question.id, { prompt: event.target.value })}
+                      className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground outline-none focus:border-primary"
+                    />
+                    <button onClick={() => removeQuestion(question.id)} className="shrink-0 text-xs font-medium text-danger">
+                      {t('form.remove')}
+                    </button>
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    {question.options.map((option, oi) => (
+                      <label key={oi} className="flex items-center gap-2 text-sm text-foreground">
+                        <input
+                          type="radio"
+                          name={`correct-${question.id}`}
+                          checked={question.correct_index === oi}
+                          onChange={() => updateQuestion(question.id, { correct_index: oi })}
+                        />
+                        <input
+                          type="text"
+                          value={option}
+                          onChange={(event) => updateOption(question.id, oi, event.target.value)}
+                          className="w-full rounded-lg border border-border bg-background px-2 py-1 text-sm text-foreground outline-none focus:border-primary"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{t('assignment.questionSelectCorrect', { n: String(qi + 1) })}</p>
                   <input
                     type="text"
-                    value={question.prompt}
-                    onChange={(event) => updateQuestion(question.id, { prompt: event.target.value })}
-                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground outline-none focus:border-primary"
+                    value={question.explanation}
+                    onChange={(event) => updateQuestion(question.id, { explanation: event.target.value })}
+                    placeholder={t('assignment.explanationPlaceholder')}
+                    className="mt-2 w-full rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground outline-none focus:border-primary"
                   />
-                  <button onClick={() => removeQuestion(question.id)} className="shrink-0 text-xs font-medium text-danger">
-                    {t('form.remove')}
-                  </button>
                 </div>
-                <div className="mt-2 space-y-1">
-                  {question.options.map((option, oi) => (
-                    <label key={oi} className="flex items-center gap-2 text-sm text-foreground">
-                      <input
-                        type="radio"
-                        name={`correct-${question.id}`}
-                        checked={question.correct_index === oi}
-                        onChange={() => updateQuestion(question.id, { correct_index: oi })}
-                      />
-                      <input
-                        type="text"
-                        value={option}
-                        onChange={(event) => updateOption(question.id, oi, event.target.value)}
-                        className="w-full rounded-lg border border-border bg-background px-2 py-1 text-sm text-foreground outline-none focus:border-primary"
-                      />
-                    </label>
-                  ))}
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{t('assignment.questionSelectCorrect', { n: String(qi + 1) })}</p>
-                <input
-                  type="text"
-                  value={question.explanation}
-                  onChange={(event) => updateQuestion(question.id, { explanation: event.target.value })}
-                  placeholder={t('assignment.explanationPlaceholder')}
-                  className="mt-2 w-full rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground outline-none focus:border-primary"
-                />
+              ))}
+            </div>
+          )}
+
+          {mode === 'freeform' && (
+            <div>
+              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('assignment.suggestedRubric')}</label>
+              <div className="mt-2 space-y-2">
+                {rubric.map((c) => (
+                  <div key={c.id} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder={t('assignment.criterionPlaceholder')}
+                      value={c.criterion}
+                      onChange={(event) => updateCriterion(c.id, { criterion: event.target.value })}
+                      className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      placeholder={t('assignment.points')}
+                      value={c.max_points}
+                      onChange={(event) => updateCriterion(c.id, { max_points: Number(event.target.value) })}
+                      className="w-20 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    />
+                    <button type="button" onClick={() => removeCriterion(c.id)} className="shrink-0 text-xs font-medium text-danger">
+                      {t('form.remove')}
+                    </button>
+                  </div>
+                ))}
+                <button type="button" onClick={addCriterion} className="text-xs font-semibold text-primary">
+                  {t('assignment.addCriterion')}
+                </button>
+                <p className="text-xs text-muted-foreground">{t('assignment.rubricHelp')}</p>
               </div>
-            ))}
-          </div>
+            </div>
+          )}
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {t('assignment.passScoreOutOf', { total: String(questions.length) })}
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={questions.length}
-                value={passScore}
-                onChange={(event) => setPassScore(Number(event.target.value))}
-                className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
-              />
-            </div>
+            {mode === 'mcq' && (
+              <div>
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {t('assignment.passScoreOutOf', { total: String(questions.length) })}
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  max={questions.length}
+                  value={passScore}
+                  onChange={(event) => setPassScore(Number(event.target.value))}
+                  className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                />
+              </div>
+            )}
             <div>
               <label className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('form.dueDate')}</label>
               <input
@@ -316,10 +436,20 @@ export default function GenerateAssignmentForm({
           <div className="flex gap-2">
             <button
               onClick={publish}
-              disabled={publishing || questions.length === 0 || !title.trim()}
+              disabled={
+                publishing ||
+                !title.trim() ||
+                (mode === 'mcq' ? questions.length === 0 : rubric.filter((c) => c.criterion.trim()).length === 0)
+              }
               className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
             >
-              {publishing ? t('assignment.publishing') : t('assignment.publishTest')}
+              {mode === 'mcq'
+                ? publishing
+                  ? t('assignment.publishing')
+                  : t('assignment.publishTest')
+                : publishing
+                  ? t('form.saving')
+                  : t('assignment.saveAssignment')}
             </button>
             <button onClick={onClose} className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-foreground hover:bg-secondary">
               {t('form.cancel')}
