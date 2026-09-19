@@ -130,6 +130,9 @@
     "easy": "आसान",
     "medium": "मध्यम",
     "expert": "विशेषज्ञ",
+    "generateMcq": "बहुविकल्पीय",
+    "generateFreeform": "लिखित उत्तर",
+    "suggestedRubric": "सुझाया गया रूब्रिक — प्रकाशित करने से पहले संपादित करें",
     "rubricOptional": "रूब्रिक (वैकल्पिक)",
     "addRubric": "रूब्रिक जोड़ें",
     "removeRubric": "रूब्रिक हटाएं",
@@ -291,9 +294,25 @@
     "noMatchingStudents": "कोई मेल खाने वाला छात्र नहीं।"
   },
   "comingSoon": {
-    "label": "जल्द आ रहा है"
+    "label": "जल्द आ रहा है",
+    "examsDesc": "यहां औपचारिक परीक्षाओं को शेड्यूल और प्रबंधित करें — अभी नहीं बनाया गया है।",
+    "learningVideosDesc": "पहले से रिकॉर्ड किए गए लेक्चर और संदर्भ क्लिप साझा करें — अभी नहीं बनाया गया है।"
   },
   "subjects": {
     "subtitle": "इस सत्र में आपके नामांकित विषय।"
+  },
+  "performance": {
+    "studentSubtitle": "आपके सभी विषयों में, आपके ग्रेड किए गए असाइनमेंट और टेस्ट।",
+    "teacherSubtitle": "आपकी कक्षाओं में ग्रेड किए गए असाइनमेंट और टेस्ट।",
+    "history": "इतिहास",
+    "byClass": "कक्षा के अनुसार",
+    "recentSubmissions": "हाल के सबमिशन",
+    "noSubmissionsYet": "अभी तक कोई सबमिशन नहीं",
+    "noSubmissionsStudentDesc": "शिक्षक द्वारा जांचे जाने पर ग्रेड किया गया कार्य यहां दिखाई देगा।",
+    "noSubmissionsTeacherDesc": "जब छात्र सबमिट करेंगे और आप उनके कार्य को ग्रेड करेंगे, तो यह यहां दिखाई देगा।",
+    "noGradesYet": "अभी तक कोई ग्रेड नहीं",
+    "avgPercent": "{percent}% औसत",
+    "passPercent": "{percent}% उत्तीर्ण",
+    "assignmentFallback": "असाइनमेंट"
   }
 }
