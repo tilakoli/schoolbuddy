@@ -197,6 +197,11 @@ function UploadForm({
       setFiles([]);
       return;
     }
+    if (list.length > 20 || list.some((file) => !['application/pdf', 'image/jpeg', 'image/png', 'image/webp'].includes(file.type))) {
+      setError('Choose one PDF or up to 20 JPEG, PNG or WebP images.');
+      setFiles([]);
+      return;
+    }
     if (list.length === 1 && list[0].type === 'application/pdf') {
       if (list[0].size > MAX_SINGLE_PDF_BYTES) {
         setError('This PDF is too large (over 15MB, roughly 50+ pages) — try splitting it into smaller sections.');
@@ -300,7 +305,7 @@ function UploadForm({
       </div>
       <input
         type="file"
-        accept="application/pdf,image/*"
+        accept="application/pdf,image/jpeg,image/png,image/webp"
         multiple
         onChange={(event) => handleFiles(event.target.files)}
         className="block w-full text-sm text-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-secondary file:px-3 file:py-2 file:text-sm file:font-medium file:text-foreground"

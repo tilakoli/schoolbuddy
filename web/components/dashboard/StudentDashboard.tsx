@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import DashboardBanner, { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
+import { AnimatedBarChart, DashboardPanel, ProgressBreakdown } from '@/components/dashboard/DashboardWidgets';
 import { getEffectiveStatus } from '@/components/assignments/types';
 import { getServerT } from '@/lib/i18n/server';
 import { createClient } from '@/lib/supabase/server';
@@ -54,6 +55,12 @@ export default async function StudentDashboard({ name }: { name: string }) {
     : { data: [] };
   // Cancelled assignments are voided — don't count them as overdue/upcoming.
   const assignments = ((assignmentRows ?? []) as unknown as AssignmentRow[]).filter((a) => getEffectiveStatus(a) !== 'cancelled');
+  const { data: submissionRows } = supabase
+    ? await supabase.rpc('get_my_submissions', {})
+    : { data: [] };
+  const submissions = (submissionRows ?? []) as { assignment_id: string; status: 'submitted' | 'graded' }[];
+  const submittedIds = new Set(submissions.map((row) => row.assignment_id));
+  const gradedCount = submissions.filter((row) => row.status === 'graded').length;
 
   const now = new Date();
   const dueSoonCount = (assignments ?? []).filter((a) => {
@@ -96,6 +103,22 @@ export default async function StudentDashboard({ name }: { name: string }) {
             </div>
           );
         })}
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
+        <DashboardPanel title="Workload by subject" subtitle="Assignments currently visible to you" action={{ href: '/assignments', label: t('dashboard.viewAssignments') }}>
+          <AnimatedBarChart
+            data={classes.map((item) => ({ label: item.subjectName, value: assignments.filter((assignment) => assignment.classes?.name === item.subjectName).length }))}
+            valueLabel="Number of assignments by subject"
+          />
+        </DashboardPanel>
+        <DashboardPanel title="Learning progress" subtitle="Your assignment activity">
+          <ProgressBreakdown items={[
+            { label: 'Submitted', value: submittedIds.size, total: assignments.length, tone: 'primary' },
+            { label: 'Graded', value: gradedCount, total: assignments.length, tone: 'success' },
+            { label: 'Still to submit', value: Math.max(0, assignments.length - submittedIds.size), total: assignments.length, tone: 'warning' },
+          ]} />
+        </DashboardPanel>
       </div>
 
       <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">{t('dashboard.myClasses')}</h2>

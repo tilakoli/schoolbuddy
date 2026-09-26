@@ -65,15 +65,16 @@ export default function Sidebar({ role, onNavigate }: { role: Role; onNavigate?:
   const items = [...NAV[role], { href: '/settings', labelKey: 'nav.settings', icon: SettingsIcon }];
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border-soft bg-card px-4 py-6">
-      <Link href="/dashboard" onClick={onNavigate} className="flex items-center gap-2 rounded-lg px-2 pb-2 hover:opacity-80">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+    <aside className="app-sidebar flex h-full w-[272px] shrink-0 flex-col bg-[#171936] px-4 py-5 text-white shadow-xl">
+      <Link href="/dashboard" onClick={onNavigate} className="flex items-center gap-3 rounded-xl px-2 py-2 hover:bg-white/[0.05]">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#7775ff] to-[#514fc7] text-base font-bold text-white shadow-lg shadow-indigo-950/30">
           {APP_CONFIG.name.charAt(0)}
         </div>
-        <p className="text-sm font-bold text-foreground">{APP_CONFIG.name}</p>
+        <div><p className="font-heading text-base font-semibold text-white">{APP_CONFIG.name}</p><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/40">Learning platform</p></div>
       </Link>
 
-      <nav className="mt-6 flex-1 space-y-1 overflow-y-auto">
+      <p className="mb-2 mt-8 px-3 text-[10px] font-bold uppercase tracking-[0.18em] text-white/35">Workspace</p>
+      <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
         {items.map((item) => {
           const active = item.href === '/dashboard' ? pathname === item.href : pathname.startsWith(item.href);
           const Icon = item.icon;
@@ -82,8 +83,8 @@ export default function Sidebar({ role, onNavigate }: { role: Role; onNavigate?:
               key={item.href}
               href={item.href}
               onClick={onNavigate}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium ${
-                active ? 'bg-primary-light text-primary' : 'text-foreground hover:bg-secondary'
+              className={`group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
+                active ? 'bg-gradient-to-r from-[#6967e8] to-[#5755cf] text-white shadow-lg shadow-black/15' : 'text-white/60 hover:bg-white/[0.07] hover:text-white'
               }`}
             >
               <Icon className="h-[18px] w-[18px] shrink-0" />
@@ -92,7 +93,10 @@ export default function Sidebar({ role, onNavigate }: { role: Role; onNavigate?:
           );
         })}
       </nav>
-
+      <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-3">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-white/35">Signed in as</p>
+        <p className="mt-1 truncate text-sm font-semibold capitalize text-white/85">{role.replace('_', ' ')}</p>
+      </div>
       <SignOutButton />
     </aside>
   );

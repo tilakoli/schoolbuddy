@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 
 export default async function AssignmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { user, profile } = await getUserAndProfile();
+  const { profile } = await getUserAndProfile();
   if (!profile || (profile.role !== 'teacher' && profile.role !== 'student')) redirect('/dashboard');
 
   const supabase = await createClient();
@@ -26,10 +26,7 @@ export default async function AssignmentDetailPage({ params }: { params: Promise
 
   if (profile.role === 'student') {
     const { data: submission } = await supabase
-      .from('submissions')
-      .select('*')
-      .eq('assignment_id', id)
-      .eq('student_id', user!.id)
+      .rpc('get_my_submissions', { p_assignment_id: id })
       .maybeSingle();
 
     return (

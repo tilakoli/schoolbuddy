@@ -8,5 +8,5 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   if (!profile) return <div className="flex min-h-screen w-full">{children}</div>;
 
-  return <AppShell role={profile.role}>{children}</AppShell>;
+  return <AppShell role={profile.role} name={user.user_metadata?.full_name || user.email?.split('@')[0] || 'School member'}>{children}</AppShell>;
 }

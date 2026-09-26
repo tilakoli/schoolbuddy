@@ -224,3 +224,27 @@ export function MailIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function CopyIcon(props: IconProps) {
+  return <svg {...base} {...props}><rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></svg>;
+}
+
+export function RefreshIcon(props: IconProps) {
+  return <svg {...base} {...props}><path d="M20 7v5h-5" /><path d="M4 17v-5h5" /><path d="M6.1 8A7 7 0 0 1 18 6l2 2M17.9 16A7 7 0 0 1 6 18l-2-2" /></svg>;
+}
+
+export function ThumbUpIcon(props: IconProps) {
+  return <svg {...base} {...props}><path d="M7 10v11H3V10zM7 19c3 1 5 2 8 2h1.5a2 2 0 0 0 2-1.7l1.4-7A2 2 0 0 0 18 10h-4l.7-3.5A3 3 0 0 0 12 3l-1 4-4 4" /></svg>;
+}
+
+export function ThumbDownIcon(props: IconProps) {
+  return <svg {...base} {...props}><path d="M7 14V3H3v11zM7 5c3-1 5-2 8-2h1.5a2 2 0 0 1 2 1.7l1.4 7A2 2 0 0 1 18 14h-4l.7 3.5A3 3 0 0 1 12 21l-1-4-4-4" /></svg>;
+}
+
+export function MicIcon(props: IconProps) {
+  return <svg {...base} {...props}><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M9 21h6" /></svg>;
+}
+
+export function PaperclipIcon(props: IconProps) {
+  return <svg {...base} {...props}><path d="M8.5 12.5 14 7a3 3 0 0 1 4.2 4.2l-7.4 7.4a5 5 0 0 1-7.1-7.1l7.4-7.4" /><path d="m7 14 6.1-6.1a1 1 0 0 1 1.4 1.4l-6.1 6.1a2 2 0 0 1-2.8-2.8" /></svg>;
+}

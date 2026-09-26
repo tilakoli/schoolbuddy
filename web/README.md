@@ -1,5 +1,8 @@
 # School Buddy — Web
 
+> **Foundation update:** See the [web/mobile feature tracker](../docs/FEATURE_TRACKER.md) and [deployment notes](../docs/IMPLEMENTATION_NOTES.md). New provisioning uses trusted **app metadata** for roles/schools; ordinary User Metadata no longer grants roles. Earlier provisioning descriptions below are historical. Apply migrations 0020–0022 with the updated server routes.
+
+
 The Next.js (App Router) companion to the root Expo app. Same Supabase project, same product, same admin-provisioned accounts — teachers and students sign in here from a browser instead of the mobile app.
 
 ## Included
@@ -10,7 +13,8 @@ The Next.js (App Router) companion to the root Expo app. Same Supabase project, 
 - `proxy.ts` (Next 16's renamed `middleware.ts`) protects all authenticated routes and refreshes the session cookie on every request
 - A persistent left sidebar (`components/Sidebar.tsx`) with role-specific nav — Classes/Students/Assignments for teachers, Subjects/Assignments for students, Teachers/Students account management for admins
 - Live admin account management — create teacher/student accounts, restrict/unrestrict, reset passwords — via protected Route Handlers using the Supabase service-role key
-- Same basic pages as mobile: home, sign in, forgot password, dashboard, settings — no sign-up screen
+- Same basic pages as mobile: home, sign in, forgot password, dashboard and settings, plus a web join-guidance page for school-managed account provisioning
+- Role dashboards include live KPIs, animated charts, attention/progress panels and accessible data fallbacks. `/signup` explains the secure school-managed invitation flow; it does not create unverified public accounts.
 
 ## Quick start
 
@@ -170,7 +174,7 @@ The upload form accepts either one PDF (capped at 15MB, with a clear error above
 
 A Class's **Materials** tab (`/classes/[id]`) still shows a read-only rollup of everything uploaded across all of that Class's subjects, for a quick cross-subject scan.
 
-**Not built yet** (tracked here, not implemented): the AI Chat below doesn't read this stored material when answering — no retrieval/RAG and no topic guardrails scoping answers to the school's own content.
+AI Chat can now retrieve keyword-matched excerpts from extracted materials for admin/VP and the material's teacher. Students do not receive teacher materials until an explicit sharing model is added. Search is lexical rather than vector/semantic retrieval and page references are unavailable because extraction does not retain page boundaries.
 
 ### AI-generated tests
 
@@ -203,15 +207,23 @@ A student's own grade/pass-fail is gated behind the assignment actually being `e
 
 A cancelled assignment's submissions never enter this page's numbers, for either role. On the student branch specifically, a submission whose assignment hasn't effectively ended yet is treated as "awaiting" rather than showing its real score — same grade-visibility gate as the assignment detail page (see **Submissions & grading** above), applied here too so a score can't leak through the aggregate view before the assignment ends.
 
+Migration `0024_submission_result_release.sql` enforces that boundary in PostgreSQL rather than relying on the UI. Students cannot directly select their active/cancelled submission rows. `get_my_submissions()` returns their submission state while replacing score, pass/fail, feedback, grader and rubric result fields with `null` until the assignment is explicitly ended or its active due date has passed. Teacher/admin read policies remain unchanged.
+
 ### AI Chat
 
-`/ai-chat` — plain conversational Gemini chat (`components/AiChat.tsx`), in the sidebar for every role. Previously a floating bubble; now a full nav tab like everything else. Calls `POST /api/chat`, which requires `GEMINI_API_KEY` (+ optional `GEMINI_MODEL`, defaults to `gemini-2.0-flash`) in `.env.local` — server-only, holds no other secret. The route accepts either a same-origin session cookie (web) or a `Authorization: Bearer <supabase access token>` header (mobile, which has no access to the web app's cookies) and validates either the same way. See **Materials** above for what this chat does *not* do yet.
+AI Chat is a read-only, role-aware assistant. A structured planning call selects from an allowlist of school topics, and the database function in `0022_grounded_chat.sql` retrieves only records permitted for the signed-in role and school. It supports teacher/student account summaries where permitted, classes, subjects, assignment dates/status, and staff-only material excerpts. It deliberately excludes grades, submissions, answer keys, credentials, attendance, arbitrary SQL, and write actions.
 
-Every assistant reply also gets a **Listen** button (`window.speechSynthesis`) that reads it aloud in whatever voice the browser has for the current language, falling back to the default voice if none is installed for it. This is a client-side layer over the existing text replies — Gemini itself is never sent or asked for audio, and there's no real-time voice conversation (that would mean Gemini's separate Live API, a different integration entirely — not implemented).
+Every reply includes server-verified source metadata. The UI labels it as school sources, school sources plus general knowledge, general knowledge not verified against school data, or insufficient evidence. Source cards show a saved record snapshot or material excerpt, retrieval time, known limitations, and an internal link. The model supplies source IDs only; it cannot supply URLs. Unknown citations and unsupported school-only claims fail closed to an insufficient-evidence response. These sources are evidence, not an accuracy percentage.
+
+The route uses two structured Gemini calls: retrieval planning and grounded answering. Evidence metadata is persisted in `ai_chat_messages.grounding`, so chat history preserves the original basis instead of silently re-querying current records. Material retrieval is keyword-based and returns at most five excerpts. Record snapshots are capped at 50 rows while carrying the exact visible-record count and an incomplete-list warning.
+
+`/ai-chat` lives in the sidebar for every role. It calls `POST /api/chat`, which requires server-only `GEMINI_API_KEY` and `GEMINI_MODEL` values in `.env.local`. The route accepts either a same-origin session cookie or a mobile `Authorization: Bearer <supabase access token>` header and validates both through the same adapter.
+
+Every assistant reply also gets a **Listen** button (`window.speechSynthesis`) that reads it aloud using the voice selected in Settings or AI Chat. English, Hindi and Telugu recognition/output follow the app language. The composer microphone performs review-before-send dictation. **Voice Beta** runs a hands-free listen → send → speak loop with live browser transcription when available and server transcription as a fallback. This remains a turn-based prototype rather than a streaming model-to-model Live API session, and speech quality depends on voices installed in the browser/operating system.
 
 Replies render through `react-markdown` (compact custom component overrides sized for a chat bubble) instead of showing raw `**`/`#`/`---` as literal text — Gemini formats longer answers with Markdown by default, regardless of language. Before a reply reaches `SpeechSynthesisUtterance`, `lib/markdown.ts`'s `stripMarkdownForSpeech()` strips that same formatting, so **Listen** doesn't pronounce symbols like "asterisk asterisk". `/api/chat`'s `systemInstruction` also asks Gemini for lighter formatting suited to a small chat bubble in the first place, as a first line of defense.
 
-Conversations are now persisted (`../supabase/migrations/0019_ai_chat_history.sql` — `ai_chat_sessions`, `ai_chat_messages`, both RLS-scoped to `user_id = auth.uid()`), with **New chat**/**History**/delete controls in the page header. The client still resends the full message array to Gemini every turn (unchanged, still capped at 60 messages) — `POST /api/chat` additionally writes just the newest user message + reply to the DB each call (via the service-role client, since the route only knows the caller's identity, not an RLS-authenticated session), creating a session on the first message of a new chat (titled from that message, truncated) and returning its id for the client to reuse on later turns. Listing, loading, and deleting sessions happen as plain RLS-protected reads/deletes straight from the browser/app's own Supabase client — no extra API routes needed for those three.
+Conversations are persisted (`../supabase/migrations/0019_ai_chat_history.sql` — `ai_chat_sessions`, `ai_chat_messages`, both RLS-scoped to `user_id = auth.uid()`). The last active conversation is remembered per signed-in user and restored on return; an explicitly selected blank draft remains blank until its first message. History supports search, Today/Yesterday/Older grouping, rename and delete. The client still resends the full message array to Gemini every turn (capped at 60 messages) — `POST /api/chat` additionally writes just the newest user message + reply to the DB each call, creating a session on the first message of a new chat and returning its id for later turns. Session management uses RLS-protected browser reads/updates/deletes, while migration `0021` restricts message rows to reads and leaves message writes to authenticated server routes.
 
 ### Multi-language support
 
@@ -231,6 +243,6 @@ This exists because the UI disabling a button while a request is in flight is a 
 
 ## Notes
 
-- Accounts are created by an administrator — either through `/admin/teachers` / `/admin/students` above, or via Supabase Dashboard → Authentication → Users (set the role at creation time via that dialog's User Metadata, e.g. `{"role": "teacher"}`). There is no self-serve sign-up flow, matching the mobile app.
+- Accounts are created by an administrator through `/admin/teachers` or `/admin/students`. Migration `0021_ownership_and_provisioning.sql` deliberately stops trusting ordinary user metadata for roles; manual privileged provisioning must set trusted app metadata or update the profile through a trusted SQL/admin process. There is no self-serve sign-up flow.
 - Exams and Learning Videos are placeholder pages (`components/ComingSoon.tsx`) — shown in the sidebar to match the target product shape, not implemented yet.
 - Replace `app/favicon.ico` with a real icon when branding assets are ready.

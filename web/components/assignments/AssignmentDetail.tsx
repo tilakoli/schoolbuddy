@@ -1,5 +1,7 @@
 'use client';
 
+import { submitAssignment } from '@shared/api/submissions';
+
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useLanguage } from '@/components/LanguageProvider';
@@ -73,13 +75,7 @@ export function StudentAssignmentView({
       const answers = isMcq
         ? Object.entries(selected).map(([id, selected_index]) => ({ id, selected_index }))
         : { text: text.trim() };
-      const res = await fetch('/api/submissions/submit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ assignmentId: assignment.id, answers }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Could not submit.');
+      const data = await submitAssignment({ assignmentId: assignment.id, answers });
       setSubmission(data);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not submit.');

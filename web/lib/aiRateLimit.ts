@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 // they get a tighter cap over a longer window.
 const LIMITS = {
   chat: { max: 20, windowMinutes: 5 },
+  'voice-transcription': { max: 20, windowMinutes: 10 },
   'materials-extract': { max: 10, windowMinutes: 60 },
   'assignments-generate': { max: 10, windowMinutes: 60 },
 } as const;

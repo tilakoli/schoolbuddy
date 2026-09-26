@@ -1,15 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 
-export type Role = 'admin' | 'vice_principal' | 'teacher' | 'student';
-
-export interface Profile {
-  id: string;
-  email: string | null;
-  full_name: string | null;
-  role: Role;
-  restricted: boolean;
-  school_id: string;
-}
+export type { Role, Profile } from '@shared/domain/profile';
+import type { Profile } from '@shared/domain/profile';
 
 export async function getUserAndProfile() {
   const supabase = await createClient();

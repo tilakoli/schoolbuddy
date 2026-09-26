@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkAiRateLimit } from '@/lib/aiRateLimit';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { createClient } from '@/lib/supabase/server';
+import { authenticateRequest } from '@/lib/supabase/request';
+import { isRecord, isUuid, isMaterialPath } from '@shared/domain/requests';
 
 const geminiApiKey = process.env.GEMINI_API_KEY;
 const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
@@ -18,25 +18,19 @@ const EXTRACTION_PROMPT_MULTI =
   'Respond with only a JSON object: {"extracted_text": string, "summary": string}.';
 
 export async function POST(request: Request) {
-  const { materialId } = (await request.json()) as { materialId?: string };
-  if (!materialId) return NextResponse.json({ error: 'materialId is required.' }, { status: 400 });
-
-  const supabase = await createClient();
-  if (!supabase) return NextResponse.json({ error: 'Supabase is not configured.' }, { status: 500 });
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+  const auth = await authenticateRequest(request);
+  if (!auth) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+  if (auth.profile.role !== 'teacher') return NextResponse.json({ error: 'Teachers only.' }, { status: 403 });
+  const { user, supabase } = auth;
+  const body: unknown = await request.json().catch(() => null);
+  if (!isRecord(body) || !isUuid(body.materialId)) return NextResponse.json({ error: 'Invalid materialId.' }, { status: 400 });
+  const { materialId } = body;
 
   const rate = await checkAiRateLimit(user.id, 'materials-extract');
   if (!rate.ok) {
     return NextResponse.json({ error: 'Too many extraction requests — wait a bit and try again.' }, { status: 429 });
   }
 
-  // The cookie-based client respects RLS ("Teachers manage materials for own
-  // classes"), so this select alone confirms the caller owns the material —
-  // no separate ownership check needed.
   const { data: material } = await supabase.from('materials').select('*').eq('id', materialId).single();
   if (!material) return NextResponse.json({ error: 'Material not found.' }, { status: 404 });
 
@@ -47,21 +41,29 @@ export async function POST(request: Request) {
     .order('position');
   if (!files || files.length === 0) return NextResponse.json({ error: 'No files found for this material.' }, { status: 404 });
 
-  const admin = createAdminClient();
-  if (!admin) return NextResponse.json({ error: 'Supabase is not configured.' }, { status: 500 });
+  const allowedTypes = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
+  if (files.length > 20 || files.some((file) => !allowedTypes.has(file.mime_type) || !isMaterialPath(file.file_path, material.class_id, material.id)) ||
+      (files.some((file) => file.mime_type === 'application/pdf') && files.length !== 1)) {
+    return NextResponse.json({ error: 'Invalid material files. Use one PDF or up to 20 images.' }, { status: 400 });
+  }
 
   if (!geminiApiKey) {
-    await admin.from('materials').update({ status: 'failed', error_message: 'GEMINI_API_KEY is not set.' }).eq('id', materialId);
+    await supabase.from('materials').update({ status: 'failed', error_message: 'GEMINI_API_KEY is not set.' }).eq('id', materialId);
     return NextResponse.json({ error: 'AI extraction is not configured yet — ask an admin to set GEMINI_API_KEY.' }, { status: 500 });
   }
 
   const inlineParts: { inline_data: { mime_type: string; data: string } }[] = [];
+  let totalBytes = 0;
   for (const file of files) {
-    const { data: fileBlob, error: downloadError } = await admin.storage.from('materials').download(file.file_path);
+    const { data: fileBlob, error: downloadError } = await supabase.storage.from('materials').download(file.file_path);
     if (downloadError || !fileBlob) {
       const message = downloadError?.message || 'Could not read one of the uploaded files.';
-      await admin.from('materials').update({ status: 'failed', error_message: message }).eq('id', materialId);
+      await supabase.from('materials').update({ status: 'failed', error_message: message }).eq('id', materialId);
       return NextResponse.json({ error: message }, { status: 500 });
+    }
+    totalBytes += fileBlob.size;
+    if (totalBytes > 25 * 1024 * 1024 || (file.mime_type === 'application/pdf' && fileBlob.size > 15 * 1024 * 1024)) {
+      return NextResponse.json({ error: 'Material exceeds the upload size limit.' }, { status: 413 });
     }
     const base64 = Buffer.from(await fileBlob.arrayBuffer()).toString('base64');
     inlineParts.push({ inline_data: { mime_type: file.mime_type, data: base64 } });
@@ -94,7 +96,7 @@ export async function POST(request: Request) {
     const parsed = JSON.parse(raw) as { extracted_text?: string; summary?: string };
     if (!parsed.extracted_text) throw new Error('Gemini did not return extracted text.');
 
-    const { data: updated, error: updateError } = await admin
+    const { data: updated, error: updateError } = await supabase
       .from('materials')
       .update({ status: 'extracted', extracted_text: parsed.extracted_text, summary: parsed.summary ?? null, error_message: null })
       .eq('id', materialId)
@@ -105,7 +107,7 @@ export async function POST(request: Request) {
     return NextResponse.json(updated);
   } catch (cause) {
     const message = cause instanceof Error ? cause.message : 'Extraction failed.';
-    const { data: updated } = await admin
+    const { data: updated } = await supabase
       .from('materials')
       .update({ status: 'failed', error_message: message })
       .eq('id', materialId)

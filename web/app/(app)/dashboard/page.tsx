@@ -8,7 +8,7 @@ export default async function DashboardPage() {
   const name = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there';
 
   return (
-    <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
+    <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 sm:py-10">
       {(profile?.role === 'admin' || profile?.role === 'vice_principal') && <AdminDashboard name={name} />}
       {profile?.role === 'teacher' && <TeacherDashboard name={name} userId={user!.id} />}
       {(!profile || profile.role === 'student') && <StudentDashboard name={name} />}

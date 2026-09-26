@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { checkAiRateLimit } from '@/lib/aiRateLimit';
-import { createClient } from '@/lib/supabase/server';
+import { authenticateRequest } from '@/lib/supabase/request';
+import { isRecord, isUuid } from '@shared/domain/requests';
 
 const geminiApiKey = process.env.GEMINI_API_KEY;
 const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
@@ -71,20 +72,24 @@ function buildFreeformPrompt(
 }
 
 export async function POST(request: Request) {
-  const body = (await request.json()) as {
-    classId?: string;
-    materialIds?: string[];
-    mode?: 'mcq' | 'freeform';
-    questionCount?: number;
-    difficulty?: string;
-    guidance?: string;
-    language?: string;
-  };
+  const auth = await authenticateRequest(request);
+  if (!auth) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
+  if (auth.profile.role !== 'teacher') return NextResponse.json({ error: 'Teachers only.' }, { status: 403 });
+  const { user, supabase } = auth;
+  const body: unknown = await request.json().catch(() => null);
+  if (!isRecord(body) || !isUuid(body.classId) || !Array.isArray(body.materialIds) ||
+      !body.materialIds.length || body.materialIds.length > 20 || !body.materialIds.every(isUuid) ||
+      (body.guidance !== undefined && (typeof body.guidance !== 'string' || body.guidance.length > 5000)) ||
+      (body.difficulty !== undefined && typeof body.difficulty !== 'string') ||
+      (body.language !== undefined && typeof body.language !== 'string') ||
+      (body.questionCount !== undefined && (typeof body.questionCount !== 'number' || !Number.isInteger(body.questionCount)))) {
+    return NextResponse.json({ error: 'Invalid generation request.' }, { status: 400 });
+  }
   const { classId, materialIds } = body;
   const mode = body.mode === 'freeform' ? 'freeform' : 'mcq';
-  const questionCount = Math.min(Math.max(body.questionCount ?? 5, 1), 20);
+  const questionCount = Math.min(Math.max((body.questionCount as number | undefined) ?? 5, 1), 20);
   const difficulty = body.difficulty ?? 'medium';
-  const guidance = (body.guidance ?? '').trim() || `Write ${mode === 'mcq' ? 'questions' : 'this assignment'} at a ${difficulty} difficulty level.`;
+  const guidance = ((body.guidance as string | undefined) ?? '').trim() || `Write ${mode === 'mcq' ? 'questions' : 'this assignment'} at a ${difficulty} difficulty level.`;
 
   if (!classId || !materialIds || materialIds.length === 0) {
     return NextResponse.json({ error: 'Pick at least one material to generate from.' }, { status: 400 });
@@ -93,22 +98,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'AI generation is not configured yet — ask an admin to set GEMINI_API_KEY.' }, { status: 500 });
   }
 
-  const supabase = await createClient();
-  if (!supabase) return NextResponse.json({ error: 'Supabase is not configured.' }, { status: 500 });
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
-
   const rate = await checkAiRateLimit(user.id, 'assignments-generate');
   if (!rate.ok) {
     return NextResponse.json({ error: 'Too many generation requests — wait a bit and try again.' }, { status: 429 });
   }
 
-  // The cookie-based client respects RLS ("Teachers manage materials for own
-  // classes"), so this select alone confirms the caller owns the class the
-  // materials belong to — no separate ownership check needed.
+  // The caller is a teacher; material reads are scoped by ownership RLS.
   const { data: materials } = await supabase
     .from('materials')
     .select('title, extracted_text, chapter')
@@ -134,8 +129,8 @@ export async function POST(request: Request) {
 
   const prompt =
     mode === 'mcq'
-      ? buildMcqPrompt(usable, questionCount, guidance, body.language)
-      : buildFreeformPrompt(usable, guidance, body.language, classGroupName);
+      ? buildMcqPrompt(usable, questionCount, guidance, body.language as string | undefined)
+      : buildFreeformPrompt(usable, guidance, body.language as string | undefined, classGroupName);
 
   try {
     const geminiResponse = await fetch(

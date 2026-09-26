@@ -1,32 +1,26 @@
 @import "tailwindcss";
 
-/*
- * "Warm Neutral, tightened" — the B+C direction approved via the design
- * canvas published this session (theme-canvas). Warm ivory ground, clay
- * accent for actions, deep teal as the brand/chrome color, tighter radii
- * and crisper shadows than the softer original. Plain hex (not oklch) so
- * mobile's constants/theme.ts can mirror these values exactly, byte for
- * byte — every screen already reads colors through these tokens, never a
- * hardcoded value, so this file is the only place the palette lives.
- */
+/* Web dashboard palette: cool canvas, indigo navigation and lively status
+   colours. Native parity is tracked separately while web is the active
+   product surface. */
 :root {
-  --background: #FBF6EF;
-  --foreground: #2B2419;
+  --background: #F4F6FC;
+  --foreground: #20233C;
   --card: #FFFFFF;
-  --border: #ECE1CE;
-  --border-soft: #F1E9DA;
-  --muted-foreground: #7A6E5C;
-  --muted-foreground-2: #9C917F;
-  --secondary: #F3E9D8;
-  --primary: #2E6F68;
-  --primary-foreground: #FBF6EF;
-  --primary-light: #DCEAE7;
-  --accent: #BE5A2E;
-  --accent-foreground: #FBF6EF;
-  --success: #3E7A52;
-  --warning: #C9932E;
-  --danger: #B03B34;
-  --info: #4C7FA6;
+  --border: #E2E6F2;
+  --border-soft: #ECEDF6;
+  --muted-foreground: #70758F;
+  --muted-foreground-2: #9A9EB4;
+  --secondary: #EEF0FA;
+  --primary: #5B5BD6;
+  --primary-foreground: #FFFFFF;
+  --primary-light: #E9E9FF;
+  --accent: #FF6B4A;
+  --accent-foreground: #FFFFFF;
+  --success: #20B486;
+  --warning: #F3A83B;
+  --danger: #EF5B6A;
+  --info: #438AF3;
 }
 
 @theme inline {
@@ -56,14 +50,41 @@
   --radius-lg: 12px;
   --radius-xl: 16px;
 
-  --shadow-sm: 0 1px 2px rgba(43,36,25,0.06);
-  --shadow-md: 0 1px 2px rgba(43,36,25,0.05), 0 10px 24px -8px rgba(43,36,25,0.12);
-  --shadow-lg: 0 24px 60px -12px rgba(43,36,25,0.28), 0 4px 16px -4px rgba(43,36,25,0.14);
+  --shadow-sm: 0 2px 8px rgba(35, 42, 83, 0.06);
+  --shadow-md: 0 12px 30px rgba(35, 42, 83, 0.10);
+  --shadow-lg: 0 24px 60px rgba(35, 42, 83, 0.16);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+.app-canvas {
+  background:
+    radial-gradient(circle at 78% 4%, rgba(91, 91, 214, 0.09), transparent 25rem),
+    radial-gradient(circle at 15% 90%, rgba(67, 138, 243, 0.06), transparent 28rem),
+    var(--background);
+}
+
+.app-canvas > main {
+  animation: page-enter 0.35s ease-out both;
+}
+
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.app-canvas input,
+.app-canvas textarea,
+.app-canvas select {
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+.app-canvas input:focus,
+.app-canvas textarea:focus,
+.app-canvas select:focus {
+  box-shadow: 0 0 0 3px rgba(91, 91, 214, 0.12);
 }
 
 /* Lora for headings, Nunito Sans for everything else — set once here so
@@ -124,11 +145,11 @@ button:not(:disabled):active {
 }
 button.bg-accent:hover:not(:disabled), a.bg-accent:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 24px -10px rgba(190,90,46,0.45);
+  box-shadow: 0 10px 24px -10px rgba(255,107,74,0.5);
 }
 button.bg-primary:hover:not(:disabled), a.bg-primary:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 24px -10px rgba(46,111,104,0.4);
+  box-shadow: 0 10px 24px -10px rgba(91,91,214,0.45);
 }
 
 @keyframes fade-up {
@@ -137,6 +158,54 @@ button.bg-primary:hover:not(:disabled), a.bg-primary:hover {
 }
 .animate-fade-up {
   animation: fade-up 0.5s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.dashboard-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.dashboard-card:hover { box-shadow: var(--shadow-md); }
+
+@keyframes dashboard-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-dashboard-in {
+  animation: dashboard-in 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes chart-grow {
+  from { height: 0; opacity: 0.35; }
+  to { height: var(--bar-height); opacity: 1; }
+}
+.chart-bar {
+  height: var(--bar-height);
+  transform-origin: bottom;
+  animation: chart-grow 0.75s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes progress-grow {
+  from { width: 0; }
+  to { width: var(--progress-width); }
+}
+.chart-progress {
+  width: var(--progress-width);
+  animation: progress-grow 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.loading-track { height: 4px; }
+@keyframes loading-slide {
+  0% { transform: translateX(-100%) scaleX(0.4); }
+  50% { transform: translateX(35%) scaleX(0.7); }
+  100% { transform: translateX(220%) scaleX(0.35); }
+}
+.loading-progress {
+  width: 55%;
+  transform-origin: left;
+  animation: loading-slide 1.35s ease-in-out infinite;
 }
 
 /* AI-feature treatment — a soft, slow-breathing gradient halo + a gentle
@@ -209,7 +278,8 @@ button.bg-primary:hover:not(:disabled), a.bg-primary:hover {
 @media (prefers-reduced-motion: reduce) {
   a.border-border.bg-card,
   button, a.bg-accent, a.bg-primary,
-  .animate-fade-up {
+  .animate-fade-up, .animate-dashboard-in, .chart-bar, .chart-progress, .loading-progress,
+  .app-canvas > main {
     animation: none !important;
     transition: none !important;
   }

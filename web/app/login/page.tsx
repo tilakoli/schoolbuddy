@@ -4,6 +4,8 @@ import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import ConfigNotice from '@/components/ConfigNotice';
+import AuthLayout from '@/components/AuthLayout';
+import LoadingIndicator from '@/components/LoadingIndicator';
 import { useLanguage } from '@/components/LanguageProvider';
 import { APP_CONFIG } from '@/constants/config';
 import { getErrorMessage } from '@/lib/errors';
@@ -40,15 +42,8 @@ export default function LoginPage() {
   };
 
   return (
-    <>
-      <header className="px-6 py-5">
-        <Link href="/" className="font-heading text-lg font-semibold text-foreground">
-          {APP_CONFIG.name}
-        </Link>
-      </header>
-
-      <main className="flex flex-1 items-center justify-center px-6 py-16">
-        <div className="animate-fade-up w-full max-w-sm">
+    <AuthLayout>
+        <div>
           <p className="text-xs font-bold tracking-[0.15em] text-primary">{t('auth.welcomeBackEyebrow')}</p>
           <h1 className="mt-2 text-3xl font-bold text-foreground">{t('auth.signInTitle', { name: APP_CONFIG.name })}</h1>
           <p className="mt-2 text-sm text-muted-foreground">{t('auth.signInSubtitle')}</p>
@@ -59,7 +54,7 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="mt-8 space-y-4">
+          <form onSubmit={handleLogin} className="mt-8 space-y-5" aria-busy={loading}>
             <div>
               <label className="text-sm font-medium text-foreground" htmlFor="email">
                 {t('auth.email')}
@@ -71,7 +66,7 @@ export default function LoginPage() {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                className="mt-1 w-full rounded-lg border border-border bg-card shadow-sm px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                className="mt-1.5 w-full rounded-lg border border-border bg-background px-3.5 py-3 text-sm text-foreground shadow-sm outline-none transition focus:border-primary focus:bg-card"
               />
             </div>
             <div>
@@ -85,7 +80,7 @@ export default function LoginPage() {
                 placeholder="Enter your password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="mt-1 w-full rounded-lg border border-border bg-card shadow-sm px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                className="mt-1.5 w-full rounded-lg border border-border bg-background px-3.5 py-3 text-sm text-foreground shadow-sm outline-none transition focus:border-primary focus:bg-card"
               />
               {error && <p className="mt-2 text-sm text-danger">{error}</p>}
             </div>
@@ -99,13 +94,14 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={!isSupabaseConfigured || !email.trim() || !password || loading}
-              className="w-full rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground disabled:opacity-50"
+              className="w-full rounded-lg bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground disabled:opacity-50"
             >
               {loading ? t('auth.signingIn') : t('auth.signIn')}
             </button>
+            {loading && <LoadingIndicator compact />}
           </form>
+          <p className="mt-7 border-t border-border-soft pt-6 text-center text-sm text-muted-foreground">New to School Buddy? <Link href="/signup" className="font-bold text-primary hover:underline">Learn how to join</Link></p>
         </div>
-      </main>
-    </>
+    </AuthLayout>
   );
 }

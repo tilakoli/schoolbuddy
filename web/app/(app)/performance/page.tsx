@@ -52,7 +52,7 @@ function computeStats(rows: SubmissionRow[]) {
 }
 
 export default async function PerformancePage() {
-  const { user, profile } = await getUserAndProfile();
+  const { profile } = await getUserAndProfile();
   if (!profile || (profile.role !== 'teacher' && profile.role !== 'student')) redirect('/dashboard');
   const t = await getServerT();
 
@@ -60,19 +60,17 @@ export default async function PerformancePage() {
   if (!supabase) redirect('/dashboard');
 
   if (profile.role === 'student') {
-    const { data } = await supabase
-      .from('submissions')
-      .select('id, assignment_id, score, max_score, passed, status, graded_at, assignments(title, class_id, status, due_at)')
-      .eq('student_id', user!.id)
-      .order('graded_at', { ascending: false, nullsFirst: false });
-    const raw = (data ?? []) as unknown as SubmissionRow[];
-
-    // A cancelled assignment doesn't count at all. A graded submission whose
-    // assignment hasn't ended yet is shown as still "awaiting" — same gate
-    // as the assignment detail page, so a score can't leak early through here.
-    const submissions = raw
-      .filter((s) => !s.assignments || getEffectiveStatus(s.assignments) !== 'cancelled')
-      .map((s) => (s.assignments && getEffectiveStatus(s.assignments) !== 'ended' ? { ...s, status: 'submitted' } : s));
+    const { data } = await supabase.rpc('get_my_submissions', {});
+    const submissionRows = (data ?? []) as Omit<SubmissionRow, 'assignments'>[];
+    const assignmentIds = [...new Set(submissionRows.map((row) => row.assignment_id))];
+    const { data: assignmentRows } = assignmentIds.length
+      ? await supabase.from('assignments').select('id, title, class_id, status, due_at').in('id', assignmentIds)
+      : { data: [] };
+    const assignmentById = new Map((assignmentRows ?? []).map((assignment) => [assignment.id, assignment]));
+    const submissions = submissionRows
+      .map((submission) => ({ ...submission, assignments: assignmentById.get(submission.assignment_id) ?? null }))
+      .filter((submission) => !submission.assignments || getEffectiveStatus(submission.assignments) !== 'cancelled')
+      .sort((a, b) => (b.graded_at ? new Date(b.graded_at).getTime() : 0) - (a.graded_at ? new Date(a.graded_at).getTime() : 0));
 
     const classIds = [...new Set(submissions.map((s) => s.assignments?.class_id).filter((id): id is string => !!id))];
     const classLabels = await buildClassLabels(supabase, classIds);

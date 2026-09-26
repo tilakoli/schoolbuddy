@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { getEffectiveStatus } from '@/components/assignments/types';
 import DashboardBanner, { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
+import { AnimatedBarChart, DashboardPanel, ProgressBreakdown } from '@/components/dashboard/DashboardWidgets';
 import { fetchTeacherClassGroups } from '@/lib/classGroups';
 import { getServerT } from '@/lib/i18n/server';
 import { createClient } from '@/lib/supabase/server';
@@ -50,6 +51,11 @@ export default async function TeacherDashboard({ name, userId }: { name: string;
     : { data: [] };
   // Cancelled assignments are voided — don't count them as due/overdue.
   const assignments = ((assignmentRows ?? []) as unknown as AssignmentRow[]).filter((a) => getEffectiveStatus(a) !== 'cancelled');
+  const { data: submissionRows } = supabase
+    ? await supabase.from('submissions').select('status')
+    : { data: [] };
+  const submissions = submissionRows ?? [];
+  const gradedSubmissions = submissions.filter((row) => row.status === 'graded').length;
 
   const now = new Date();
   const dueSoonCount = (assignments ?? []).filter((a) => {
@@ -101,6 +107,19 @@ export default async function TeacherDashboard({ name, userId }: { name: string;
             </div>
           );
         })}
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
+        <DashboardPanel title="Class reach" subtitle="Students in each class" action={{ href: '/classes', label: t('dashboard.viewClasses') }}>
+          <AnimatedBarChart data={classes.map((item) => ({ label: item.name, value: item.studentCount }))} valueLabel="Number of students in each class" />
+        </DashboardPanel>
+        <DashboardPanel title="Grading progress" subtitle="Submission status across your classes">
+          <ProgressBreakdown items={[
+            { label: 'Graded', value: gradedSubmissions, total: submissions.length, tone: 'success' },
+            { label: 'Awaiting grade', value: submissions.length - gradedSubmissions, total: submissions.length, tone: 'warning' },
+            { label: 'Assignments due soon', value: dueSoonCount, total: assignments.length, tone: 'info' },
+          ]} />
+        </DashboardPanel>
       </div>
 
       <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">{t('dashboard.yourClasses')}</h2>

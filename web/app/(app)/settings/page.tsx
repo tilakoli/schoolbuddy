@@ -1,6 +1,7 @@
 import { MailIcon } from '@/components/icons';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import SignOutButton from '@/components/SignOutButton';
+import VoiceSettings from '@/components/VoiceSettings';
 import { APP_CONFIG } from '@/constants/config';
 import { getServerT } from '@/lib/i18n/server';
 import { getUserAndProfile, type Role } from '@/lib/supabase/profile';
@@ -66,6 +67,10 @@ export default async function SettingsPage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('settings.language')}</p>
           <div className="mt-2">
             <LanguageSwitcher />
+          </div>
+          <div className="mt-4 border-t border-border pt-4">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Spoken voice</p>
+            <VoiceSettings />
           </div>
         </div>
 
