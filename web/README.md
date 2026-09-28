@@ -1,6 +1,6 @@
 # School Buddy — Web
 
-> **Foundation update:** See the [web/mobile feature tracker](../docs/FEATURE_TRACKER.md) and [deployment notes](../docs/IMPLEMENTATION_NOTES.md). New provisioning uses trusted **app metadata** for roles/schools; ordinary User Metadata no longer grants roles. Earlier provisioning descriptions below are historical. Apply migrations 0020–0022 with the updated server routes.
+> **Foundation update:** See the [web/mobile feature tracker](../docs/FEATURE_TRACKER.md) and [deployment notes](../docs/IMPLEMENTATION_NOTES.md). New provisioning uses trusted **app metadata** for roles/schools; ordinary User Metadata no longer grants roles. Earlier provisioning descriptions below are historical. Apply migrations 0020–0025 with the updated server routes.
 
 
 The Next.js (App Router) companion to the root Expo app. Same Supabase project, same product, same admin-provisioned accounts — teachers and students sign in here from a browser instead of the mobile app.
@@ -67,7 +67,8 @@ web/
       timetable/               Real weekly schedule grid
       ai-chat/                 Full-page AI chat, every role
       performance/             Real graded-submission history + summary stats, teacher/student only
-      exams/, learning-videos/   Placeholder pages (ComingSoon)
+      exams/                 Exam schedules — teacher draft/publish/cancel, student view, staff oversight
+      learning-videos/        YouTube/Vimeo lessons — teacher publish, student watch/progress, staff oversight
       settings/              Signed-in email, role, sign out
     api/admin/
       create-user/route.ts    POST — create a teacher/student account
@@ -233,7 +234,7 @@ Runs on **[next-intl](https://next-intl.dev)**, cookie-driven with no URL-based 
 
 A missing translation key throws loudly in development (`i18n/request.ts`'s `onError`) instead of silently rendering nothing — in production it falls back to the English string and logs a warning instead of crashing a real user's page. The actual build-time safety net is `npm run i18n:check` (`scripts/sync-i18n.mjs`, run from the repo root) — it fails if any locale is missing a key that `en.json` has, or if web's and mobile's copies of a locale have drifted; `npm run i18n:sync` copies `web/messages/*.json` (canonical) over `constants/i18n/*.json` (mobile's copy) to fix drift. Mobile runs the same JSON files through i18next instead (see root `README.md`'s Multi-language section) — ICU-style `{param}` interpolation is shared between both, but next-intl's ICU plural syntax (`{count, plural, one {...} other {...}}`) currently only works on web; mobile would need the separate `i18next-icu` plugin to match, not installed yet.
 
-Not yet covered: admin-only account-management screens (`/admin/teachers`, `/admin/students`), and the Exams/Learning Videos placeholder pages. Adding a language means adding a new `messages/<locale>.json`, running `npm run i18n:sync`, and adding the locale to `lib/i18n/index.ts`'s `Language` type/`LANGUAGE_LABELS` (and mirroring both in `constants/i18n/index.ts` and `lib/i18n.ts` on mobile) — no paid translation-management service is wired up; that's a deliberate future decision, not a blocker (the libraries themselves — next-intl, i18next — are free regardless of that choice).
+Not yet covered: admin-only account-management screens (`/admin/teachers`, `/admin/students`) and the newest Exams/Learning Videos management screens. Adding a language means adding a new `messages/<locale>.json`, running `npm run i18n:sync`, and adding the locale to `lib/i18n/index.ts`'s `Language` type/`LANGUAGE_LABELS` (and mirroring both in `constants/i18n/index.ts` and `lib/i18n.ts` on mobile) — no paid translation-management service is wired up; that's a deliberate future decision, not a blocker (the libraries themselves — next-intl, i18next — are free regardless of that choice).
 
 ### AI usage boundaries
 
@@ -244,5 +245,5 @@ This exists because the UI disabling a button while a request is in flight is a 
 ## Notes
 
 - Accounts are created by an administrator through `/admin/teachers` or `/admin/students`. Migration `0021_ownership_and_provisioning.sql` deliberately stops trusting ordinary user metadata for roles; manual privileged provisioning must set trusted app metadata or update the profile through a trusted SQL/admin process. There is no self-serve sign-up flow.
-- Exams and Learning Videos are placeholder pages (`components/ComingSoon.tsx`) — shown in the sidebar to match the target product shape, not implemented yet.
+- Exams and Learning Videos are web-first MVP features backed by `0025_exams_and_learning_videos.sql`. Native screens are still planned.
 - Replace `app/favicon.ico` with a real icon when branding assets are ready.

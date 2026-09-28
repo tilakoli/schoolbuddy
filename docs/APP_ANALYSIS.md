@@ -3,6 +3,10 @@
 Document created: 25 September 2026  
 Based on the repository review performed on 19 September 2026.
 
+> Implementation update (26 September 2026): shared foundations and initial security fixes now exist. See [current feature tracker](FEATURE_TRACKER.md) and [rollout notes](IMPLEMENTATION_NOTES.md). This document preserves the original audit; findings below are not a current deployment-status checklist.
+>
+> Later update (26 September 2026): exams and learning videos now have a web-first MVP with shared Supabase schema/RLS. The inventory below remains the historical baseline from the original audit.
+
 ## Summary
 
 School Buddy has two separate frontends sharing a Supabase backend:

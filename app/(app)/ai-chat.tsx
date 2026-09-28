@@ -1,3 +1,4 @@
+import type { ChatGrounding } from '@/shared/domain/chat';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -35,6 +36,7 @@ const markdownStyles = {
 interface ChatMessage {
   role: 'user' | 'assistant';
   text: string;
+  grounding?: ChatGrounding | null;
 }
 
 interface ChatSession {
@@ -106,7 +108,7 @@ export default function AiChatScreen() {
     Speech.stop();
     setHistoryVisible(false);
     setError(undefined);
-    const { data } = await supabase.from('ai_chat_messages').select('role, text').eq('session_id', id).order('created_at', { ascending: true });
+    const { data } = await supabase.from('ai_chat_messages').select('role, text, grounding').eq('session_id', id).order('created_at', { ascending: true });
     setMessages((data ?? []) as ChatMessage[]);
     setActiveSessionId(id);
   };
@@ -147,11 +149,12 @@ export default function AiChatScreen() {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ messages: nextMessages, sessionId: activeSessionId, language }),
+        body: JSON.stringify({ messages: nextMessages.map(({ role, text }) => ({ role, text })), sessionId: activeSessionId, language }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Something went wrong.');
-      setMessages((prev) => [...prev, { role: 'assistant', text: data.reply }]);
+      setMessages((prev) => [...prev, { role: 'assistant', text: data.reply, grounding: data.grounding }]);
+      if (data.historySaved === false) setError(t('chat.historySaveFailed'));
       if (data.sessionId && data.sessionId !== activeSessionId) setActiveSessionId(data.sessionId);
       loadSessions();
     } catch (cause) {
@@ -168,7 +171,7 @@ export default function AiChatScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flex: 1 }}>
             <Text style={{ color: Colors.foreground, fontFamily: FontFamily.heading, fontSize: 26 }}>{t('chat.title')}</Text>
-            <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 4 }}>{t('chat.subtitle')}</Text>
+            <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm, marginTop: 4 }}>{t('chat.schoolSubtitle')}</Text>
           </View>
           <View style={{ flexDirection: 'row', gap: Spacing.xs }}>
             <TouchableOpacity
@@ -224,6 +227,21 @@ export default function AiChatScreen() {
                 <Markdown style={markdownStyles}>{message.text}</Markdown>
               ) : (
                 <Text style={{ color: Colors.primaryForeground, fontSize: FontSize.sm }}>{message.text}</Text>
+              )}
+              {message.role === 'assistant' && (
+                <View style={{ marginTop: 8, gap: 4 }}>
+                  <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.xs }}>
+                    {t(message.grounding ? `chat.evidence.${message.grounding.basis}` : 'chat.evidence.legacy')}
+                  </Text>
+                  {message.grounding && <>
+                    <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.xs }}>{t('chat.evidence.notAccuracy')}</Text>
+                    {message.grounding.sources.length > 0 && <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.xs }}>
+                      {t('chat.evidence.retrieved', { date: new Date(message.grounding.retrievedAt).toLocaleString() })}
+                    </Text>}
+                    {message.grounding.sources.map((source) => <Text key={source.id} style={{ color: Colors.primary, fontSize: FontSize.xs }}>• {source.label}</Text>)}
+                    {message.grounding.limitations.map((key) => <Text key={key} style={{ color: Colors.mutedForeground, fontSize: FontSize.xs }}>{t(`chat.evidence.${key}`)}</Text>)}
+                  </>}
+                </View>
               )}
               {message.role === 'assistant' && (
                 <TouchableOpacity onPress={() => speak(message.text, i)} style={{ marginTop: 6 }}>

@@ -1,5 +1,8 @@
 # School Buddy
 
+> **Foundation update:** See the [web/mobile feature tracker](docs/FEATURE_TRACKER.md) and [deployment notes](docs/IMPLEMENTATION_NOTES.md). New provisioning uses trusted **app metadata** for roles/schools; ordinary User Metadata no longer grants roles. Earlier provisioning descriptions below are historical. Apply migrations 0020–0021 with the updated server routes.
+
+
 An internal learning tool for teachers and students. Teachers and students sign in with accounts provisioned by an administrator; there is no self-service account creation in the app.
 
 This repo has two apps sharing one Supabase project:
@@ -123,15 +126,15 @@ A subject has exactly one teacher, school-wide (`supabase/migrations/0012_subjec
 
 ## AI Chat
 
-`app/(app)/ai-chat.tsx` — a real bottom tab now (previously a floating bubble), on both platforms, every role. Plain Gemini conversation via `POST /api/chat` on the web app (mobile has no server of its own, so it calls the web app's route at `EXPO_PUBLIC_API_URL`, authenticating with its own Supabase access token as a Bearer header since it can't share the web app's session cookie). Set `GEMINI_API_KEY` in `web/.env.local` to enable it — see `web/README.md`'s AI Chat section.
+`app/(app)/ai-chat.tsx` is a bottom tab on both platforms for every role. It calls the web app's `POST /api/chat` route with a Supabase bearer token. The route can answer from role-authorized School Buddy records and, for staff, keyword-matched excerpts from extracted teaching materials. It returns a server-built evidence object with every response so the app can label the answer as school-grounded, mixed, general knowledge, or insufficient evidence.
 
 Every assistant reply has a **Listen** button (`expo-speech`, native device TTS — no API key, no network round-trip) that reads it aloud in the current language. It's a client-side layer over the plain text reply; Gemini isn't involved in the audio at all, and there's no live voice conversation (that's Gemini's separate Live API — a different integration, not implemented).
 
 Replies render as Markdown (`react-native-markdown-display`, since Gemini often formats longer answers with headings/bold/lists) instead of showing raw `**`/`#`/`---` as literal text. Before a reply is spoken, `lib/markdown.ts`'s `stripMarkdownForSpeech()` strips that same formatting first, so **Listen** doesn't read out symbols like "asterisk asterisk" — `/api/chat`'s system prompt also nudges Gemini toward lighter formatting suited to a chat bubble in the first place.
 
-Conversations are persisted server-side now (`supabase/migrations/0019_ai_chat_history.sql`) — a **New chat** button, a **History** list (tap to reopen, swipe-adjacent delete icon per row, via a bottom sheet modal here since there's less screen width than web), and delete, all RLS-scoped to the signed-in user. `POST /api/chat` (web's route, called by both platforms) writes each turn's user message + reply to the DB as a side effect, creating a session on a new chat's first message; listing/loading/deleting a session happens as a plain RLS-protected Supabase read/delete directly from the app, same as web.
+Conversations are persisted server-side (`supabase/migrations/0019_ai_chat_history.sql` and `0022_grounded_chat.sql`). Evidence metadata is saved with assistant messages so reopened history retains its source labels. The native view lists source names and limitations; the web view additionally shows evidence snapshots and links to authorized records.
 
-**Not built yet**: this chat has no access to the class materials teachers upload from each subject's Materials section (web) — no retrieval/RAG, no guardrails scoping answers to the school's own content.
+Current limits: chat is read-only; it cannot manage accounts/classes or expose grades, submissions, answer keys, or attendance. Student accounts do not retrieve teacher-uploaded materials until a deliberate student-sharing feature exists. Material retrieval is keyword-based text search over up to five excerpts, not semantic/vector search, and extracted content has no page-number metadata. Source cards communicate evidence, not a fabricated accuracy percentage.
 
 ## Multi-language support
 

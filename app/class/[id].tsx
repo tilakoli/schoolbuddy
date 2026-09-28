@@ -1,3 +1,4 @@
+import { getEffectiveStatus, STATUS_LABEL, type AssignmentStatus } from '@/shared/domain/assignments';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -23,6 +24,7 @@ interface AssignmentRow {
   assessment_type: string;
   difficulty: string;
   due_at: string | null;
+  status: AssignmentStatus;
 }
 
 interface RosterStudent {
@@ -149,7 +151,7 @@ export default function SubjectOfferingScreen() {
         >
           <Text style={{ color: Colors.foreground, fontSize: FontSize.sm, fontWeight: '600' }}>{assignment.title}</Text>
           <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.xs, marginTop: 2 }}>
-            {t(`assignment.${assignment.assessment_type}`)} · {t(`assignment.${assignment.difficulty}`)}
+            {t(STATUS_LABEL[getEffectiveStatus(assignment)])} · {t(`assignment.${assignment.assessment_type}`)} · {t(`assignment.${assignment.difficulty}`)}
             {assignment.due_at ? ` · ${t('assignment.dueOn', { date: new Date(assignment.due_at).toLocaleDateString() })}` : ''}
           </Text>
         </View>

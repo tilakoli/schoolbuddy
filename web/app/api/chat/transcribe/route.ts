@@ -21,14 +21,17 @@ export async function POST(request: Request) {
 
   try {
     const value = await generateJson(
-      `Transcribe this school-assistant voice message accurately. The expected language is ${language}. Preserve names and educational terms. Return only the spoken words, without commentary.`,
+      `Transcribe this school-assistant voice message accurately. The expected language is ${language}. Preserve names and educational terms. Return only the spoken words. If the audio is silent, unclear, mostly background noise, or you are not confident, return an empty transcript string. Do not guess missing words and do not invent school announcements.`,
       [{ role: 'user', parts: [
         { inline_data: { mime_type: audio.type, data: Buffer.from(await audio.arrayBuffer()).toString('base64') } },
         { text: 'Transcribe the attached voice message.' },
       ] }],
       { type: 'OBJECT', properties: { transcript: { type: 'STRING' } }, required: ['transcript'] },
     ) as { transcript?: unknown };
-    if (typeof value.transcript !== 'string' || !value.transcript.trim() || value.transcript.length > 20000) throw new Error('Invalid transcript.');
+    if (typeof value.transcript !== 'string' || value.transcript.length > 20000) throw new Error('Invalid transcript.');
+    if (!value.transcript.trim()) {
+      return NextResponse.json({ error: 'I could not hear that clearly. Please try again closer to the microphone.' }, { status: 422 });
+    }
     return NextResponse.json({ transcript: value.transcript.trim() });
   } catch {
     return NextResponse.json({ error: 'The recording could not be transcribed. Try again in a quieter place.' }, { status: 502 });

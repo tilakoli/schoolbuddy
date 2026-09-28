@@ -1,3 +1,4 @@
+import { getEffectiveStatus, STATUS_LABEL, type AssignmentStatus } from '@/shared/domain/assignments';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import Button from '@/components/shared/Button';
@@ -13,6 +14,7 @@ interface AssignmentRow {
   assessment_type: string;
   difficulty: string;
   due_at: string | null;
+  status: AssignmentStatus;
   className: string;
   class_id: string;
 }
@@ -64,7 +66,7 @@ export default function AssignmentsScreen() {
 
         const { data } = await supabase
           .from('assignments')
-          .select('id, title, assessment_type, difficulty, due_at, class_id, classes(name)')
+          .select('id, title, assessment_type, difficulty, due_at, status, class_id, classes(name)')
           .in('class_id', options.map((c) => c.id))
           .order('due_at', { ascending: true, nullsFirst: false });
         if (cancelled) return;
@@ -73,7 +75,7 @@ export default function AssignmentsScreen() {
         // RLS restricts this to the signed-in student's own enrolled classes.
         const { data } = await supabase
           .from('assignments')
-          .select('id, title, assessment_type, difficulty, due_at, class_id, classes(name)')
+          .select('id, title, assessment_type, difficulty, due_at, status, class_id, classes(name)')
           .order('due_at', { ascending: true, nullsFirst: false });
         if (cancelled) return;
         setAssignments(((data ?? []) as any[]).map((row) => ({ ...row, className: row.classes?.name ?? '' })));
@@ -123,7 +125,10 @@ export default function AssignmentsScreen() {
             <Text style={{ color: Colors.mutedForeground, fontSize: FontSize.sm }}>{t('students.noAssignmentsYet')}</Text>
           )}
           {assignments.map((assignment) => {
-            const status = dueStatus(assignment.due_at);
+            const effectiveStatus = getEffectiveStatus(assignment);
+            const status = effectiveStatus === 'active'
+              ? dueStatus(assignment.due_at)
+              : { labelKey: STATUS_LABEL[effectiveStatus], dateLabel: null, color: effectiveStatus === 'cancelled' ? Colors.danger : Colors.mutedForeground };
             return (
               <View
                 key={assignment.id}
@@ -161,6 +166,7 @@ interface NewAssignmentPayload {
   assessment_type: string;
   difficulty: string;
   due_at: string | null;
+  status: AssignmentStatus;
   class_id: string;
 }
 
@@ -185,7 +191,7 @@ function NewAssignmentForm({
     const { data, error } = await supabase
       .from('assignments')
       .insert({ class_id: classId, title: title.trim(), assessment_type: assessmentType, difficulty, due_at: dueAt ? new Date(dueAt).toISOString() : null })
-      .select('id, title, assessment_type, difficulty, due_at, class_id')
+      .select('id, title, assessment_type, difficulty, due_at, status, class_id')
       .single();
     setLoading(false);
     if (!error && data) onCreated(data);

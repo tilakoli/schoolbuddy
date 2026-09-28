@@ -49,7 +49,7 @@ begin
       v_email,
       extensions.crypt(v_password, extensions.gen_salt('bf')),
       now(),
-      '{"provider":"email","providers":["email"]}',
+      jsonb_build_object('provider', 'email', 'providers', jsonb_build_array('email'), 'role', v_role),
       jsonb_build_object('role', v_role, 'full_name', v_full_name),
       now(),
       now(),

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEvent } from 'react';
 import ReactMarkdown from 'react-markdown';
 import ChatSources from '@/components/ChatSources';
 import type { ChatGrounding } from '@shared/domain/chat';
@@ -54,8 +54,20 @@ interface ChatSession {
 const SPEECH_LANG: Record<string, string> = { en: 'en-US', hi: 'hi-IN', te: 'te-IN' };
 const CHAT_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'text/plain'];
 const NEW_CHAT_MARKER = 'new';
+const MAX_AUTO_SEND_TRANSCRIPT_WORDS = 18;
 
-interface SpeechRecognitionResultLike { isFinal: boolean; 0: { transcript: string } }
+function cleanVoiceTranscript(value: string) {
+  const words = value.replace(/\s+/g, ' ').trim().split(' ');
+  while (words.length > 1) {
+    const last = words[words.length - 1].replace(/[^A-Za-z]/g, '');
+    if (last.length >= 4 && !/[aeiou]/i.test(last)) words.pop();
+    else break;
+  }
+  return words.join(' ').replace(/\s+([?.!,])/g, '$1').trim();
+}
+
+interface SpeechRecognitionAlternativeLike { transcript: string; confidence?: number }
+interface SpeechRecognitionResultLike { isFinal: boolean; 0: SpeechRecognitionAlternativeLike }
 interface SpeechRecognitionEventLike { resultIndex: number; results: ArrayLike<SpeechRecognitionResultLike> }
 interface SpeechRecognitionLike {
   continuous: boolean; interimResults: boolean; lang: string;
@@ -80,7 +92,8 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
-  const [listening, setListening] = useState(false);
+  const [dictationListening, setDictationListening] = useState(false);
+  const [conversationListening, setConversationListening] = useState(false);
   const [recordingFallback, setRecordingFallback] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [conversationActive, setConversationActive] = useState(false);
@@ -92,7 +105,10 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const voiceBaseRef = useRef('');
   const speechFailedRef = useRef(false);
+  const dictationFinalTranscriptRef = useRef('');
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordingHeardSpeechRef = useRef(false);
+  const recordingPeakVolumeRef = useRef(0);
   const recordingStreamRef = useRef<MediaStream | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
   const voiceDetectionTimerRef = useRef<number | null>(null);
@@ -102,9 +118,31 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
   const conversationTranscriptRef = useRef('');
   const activeChatStorageKey = `schoolbuddy-active-chat:${userId}`;
 
+  const closeVoiceAudioContext = useCallback(() => {
+    const context = voiceAudioContextRef.current;
+    voiceAudioContextRef.current = null;
+    if (!context || context.state === 'closed') return;
+    void context.close().catch(() => {
+      // Some browsers close this automatically when the microphone stream ends.
+    });
+  }, []);
+
+  const stopRecorder = useCallback(() => {
+    const recorder = recorderRef.current;
+    if (recorder?.state === 'recording') recorder.stop();
+    recorderRef.current = null;
+    recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+    recordingStreamRef.current = null;
+    if (voiceDetectionTimerRef.current) window.clearInterval(voiceDetectionTimerRef.current);
+    voiceDetectionTimerRef.current = null;
+    closeVoiceAudioContext();
+  }, [closeVoiceAudioContext]);
+
   const suggestedPrompts = role === 'admin' || role === 'vice_principal'
     ? [t('chat.schoolPromptTeachers'), t('chat.schoolPromptSubjects'), t('chat.schoolPromptAssignments'), t('chat.schoolPromptMaterials')]
     : [t('chat.schoolPromptClasses'), t('chat.schoolPromptAssignments'), t('chat.prompt1'), t('chat.prompt2')];
+  const reviewVoiceBeforeSend = role === 'admin' || role === 'vice_principal';
+  const useRecorderFirst = reviewVoiceBeforeSend;
 
   const loadSessions = async () => {
     const supabase = createClient();
@@ -153,7 +191,7 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
     const timer = window.setTimeout(loadVoices, 0);
     window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
     return () => { window.clearTimeout(timer); window.speechSynthesis?.removeEventListener('voiceschanged', loadVoices); };
-  }, []);
+  }, [stopRecorder]);
 
   const configureVoice = (utterance: SpeechSynthesisUtterance) => {
     const targetLang = SPEECH_LANG[language] ?? 'en-US';
@@ -176,10 +214,9 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
     return () => {
       if (typeof window !== 'undefined') window.speechSynthesis?.cancel();
       recognitionRef.current?.abort();
-      recorderRef.current?.stop();
-      recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+      stopRecorder();
     };
-  }, []);
+  }, [stopRecorder]);
 
   const speak = (text: string, index: number) => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return;
@@ -199,13 +236,10 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
   const stopConversation = () => {
     conversationRef.current = false;
     setConversationActive(false);
-    setListening(false);
+    setConversationListening(false);
     recognitionRef.current?.abort();
     recognitionRef.current = null;
-    if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
-    recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
-    if (voiceDetectionTimerRef.current) window.clearInterval(voiceDetectionTimerRef.current);
-    void voiceAudioContextRef.current?.close();
+    stopRecorder();
     window.speechSynthesis?.cancel();
   };
 
@@ -232,10 +266,18 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
       const response = await fetch('/api/chat/transcribe', { method: 'POST', body: form });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Voice transcription failed.');
-      setInput((current) => [current.trim(), data.transcript].filter(Boolean).join(' '));
+      const transcript = cleanVoiceTranscript(typeof data.transcript === 'string' ? data.transcript : '');
+      if (!transcript) throw new Error('I could not hear that clearly. Please try again.');
+      if (reviewVoiceBeforeSend) {
+        setInput((current) => [current.trim(), transcript].filter(Boolean).join(' '));
+        setError('Review the voice transcript, then press Send if it looks right.');
+        stopConversation();
+        return;
+      }
+      setInput((current) => [current.trim(), transcript].filter(Boolean).join(' '));
       if (conversationRef.current) {
         setConversationStatus('thinking');
-        await sendMessage(data.transcript, messagesRef.current, true);
+        await sendMessage(transcript, messagesRef.current, true);
       }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Voice transcription failed.');
@@ -252,6 +294,8 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
       const preferred = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : '';
       const recorder = new MediaRecorder(stream, preferred ? { mimeType: preferred } : undefined);
       recordingChunksRef.current = [];
+      recordingHeardSpeechRef.current = false;
+      recordingPeakVolumeRef.current = 0;
       recorder.ondataavailable = (event) => { if (event.data.size) recordingChunksRef.current.push(event.data); };
       recorder.onstop = () => {
         const type = recorder.mimeType.split(';')[0] || 'audio/webm';
@@ -260,10 +304,14 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
         recordingStreamRef.current = null;
         if (voiceDetectionTimerRef.current) window.clearInterval(voiceDetectionTimerRef.current);
         voiceDetectionTimerRef.current = null;
-        void voiceAudioContextRef.current?.close();
-        voiceAudioContextRef.current = null;
-        setListening(false);
+        closeVoiceAudioContext();
+        setDictationListening(false);
+        setConversationListening(false);
         setRecordingFallback(false);
+        if (!reviewVoiceBeforeSend && (!recordingHeardSpeechRef.current || recordingPeakVolumeRef.current < 0.018)) {
+          setError('I could not hear speech clearly. Please try again closer to the microphone.');
+          return;
+        }
         if (blob.size) void transcribeRecording(blob);
       };
       recordingStreamRef.current = stream;
@@ -284,12 +332,18 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
         let energy = 0;
         for (const sample of samples) { const normalized = (sample - 128) / 128; energy += normalized * normalized; }
         const volume = Math.sqrt(energy / samples.length);
-        if (volume > 0.025) { heardSpeech = true; lastSpeechAt = new Date().getTime(); }
+        recordingPeakVolumeRef.current = Math.max(recordingPeakVolumeRef.current, volume);
+        if (volume > 0.018) {
+          heardSpeech = true;
+          recordingHeardSpeechRef.current = true;
+          lastSpeechAt = new Date().getTime();
+        }
         const now = new Date().getTime();
-        if ((heardSpeech && now - lastSpeechAt > 1300) || now - recordingStartedAt > 30000) recorder.stop();
+        if ((heardSpeech && now - lastSpeechAt > 1300) || (reviewVoiceBeforeSend && now - recordingStartedAt > 5000) || now - recordingStartedAt > 30000) recorder.stop();
       }, 120);
       setRecordingFallback(true);
-      setListening(true);
+      if (conversationRef.current) setConversationListening(true);
+      else setDictationListening(true);
       setError(undefined);
     } catch {
       setError('Microphone access was denied. Allow microphone permission in your browser and try again.');
@@ -298,10 +352,10 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
 
   const toggleListening = () => {
     if (conversationRef.current) { stopConversation(); return; }
-    if (listening) {
+    if (conversationListening) {
       recognitionRef.current?.abort();
-      if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
-      setListening(false);
+      stopRecorder();
+      setConversationListening(false);
       return;
     }
     conversationRef.current = true;
@@ -312,16 +366,16 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
 
   const toggleDictation = () => {
     if (conversationRef.current || loading || transcribing) return;
-    if (listening) {
+    if (dictationListening) {
       recognitionRef.current?.stop();
-      if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
-      setListening(false);
+      stopRecorder();
+      setDictationListening(false);
       return;
     }
 
     const speechWindow = window as typeof window & { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor };
     const Recognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
-    if (!Recognition || speechFailedRef.current) {
+    if (useRecorderFirst || !Recognition || speechFailedRef.current) {
       void startRecorderFallback();
       return;
     }
@@ -331,23 +385,31 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
     recognition.interimResults = true;
     recognition.lang = SPEECH_LANG[language] ?? 'en-US';
     const baseInput = input.trim();
+    dictationFinalTranscriptRef.current = '';
     recognition.onresult = (event) => {
-      let transcript = '';
-      for (let index = 0; index < event.results.length; index += 1) transcript += event.results[index][0]?.transcript ?? '';
-      setInput([baseInput, transcript.trim()].filter(Boolean).join(' '));
+      let interim = '';
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const transcript = result[0]?.transcript ?? '';
+        if (result.isFinal) dictationFinalTranscriptRef.current += transcript;
+        else interim += transcript;
+      }
+      const visibleTranscript = cleanVoiceTranscript([dictationFinalTranscriptRef.current, interim].join(' '));
+      setInput([baseInput, visibleTranscript].filter(Boolean).join(' '));
     };
     recognition.onerror = () => {
-      setListening(false);
+      setDictationListening(false);
       recognitionRef.current = null;
-      setError('Voice dictation stopped. Check microphone permission and try again.');
+      speechFailedRef.current = true;
+      void startRecorderFallback();
     };
     recognition.onend = () => {
-      setListening(false);
+      setDictationListening(false);
       recognitionRef.current = null;
     };
     recognitionRef.current = recognition;
     setError(undefined);
-    setListening(true);
+    setDictationListening(true);
     recognition.start();
   };
 
@@ -356,7 +418,7 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
     if (recordingFallback && recorderRef.current) { recorderRef.current.stop(); return; }
     const speechWindow = window as typeof window & { SpeechRecognition?: SpeechRecognitionConstructor; webkitSpeechRecognition?: SpeechRecognitionConstructor };
     const Recognition = speechWindow.SpeechRecognition ?? speechWindow.webkitSpeechRecognition;
-    if (!Recognition || speechFailedRef.current) { void startRecorderFallback(); return; }
+    if (useRecorderFirst || !Recognition || speechFailedRef.current) { void startRecorderFallback(); return; }
     const recognition = new Recognition();
     recognition.continuous = false;
     recognition.interimResults = true;
@@ -364,31 +426,48 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
     voiceBaseRef.current = input.trim();
     conversationTranscriptRef.current = '';
     recognition.onresult = (event) => {
-      let transcript = '';
-      for (let index = 0; index < event.results.length; index += 1) transcript += event.results[index][0]?.transcript ?? '';
-      conversationTranscriptRef.current = transcript.trim();
-      setInput([voiceBaseRef.current, transcript].filter(Boolean).join(' ').trimStart());
+      let interim = '';
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const result = event.results[index];
+        const transcript = result[0]?.transcript ?? '';
+        if (result.isFinal) conversationTranscriptRef.current += transcript;
+        else interim += transcript;
+      }
+      const visibleTranscript = cleanVoiceTranscript([conversationTranscriptRef.current, interim].join(' '));
+      setInput([voiceBaseRef.current, visibleTranscript].filter(Boolean).join(' ').trimStart());
     };
     recognition.onerror = () => {
       speechFailedRef.current = true;
-      setListening(false);
+      setConversationListening(false);
       recognitionRef.current = null;
+      if (conversationRef.current) void startRecorderFallback();
     };
     recognition.onend = () => {
-      setListening(false);
+      setConversationListening(false);
       recognitionRef.current = null;
       const transcript = conversationTranscriptRef.current.trim();
       if (!conversationRef.current) return;
       if (transcript) {
+        const cleanedTranscript = cleanVoiceTranscript(transcript);
+        if (reviewVoiceBeforeSend) {
+          setInput([voiceBaseRef.current, cleanedTranscript].filter(Boolean).join(' ').trimStart());
+          setError('Review the voice transcript, then press Send if it looks right.');
+          stopConversation();
+          return;
+        }
+        if (transcript.split(/\s+/).length > MAX_AUTO_SEND_TRANSCRIPT_WORDS) {
+          setError('Voice transcript looked uncertain, so I left it in the message box for review.');
+          return;
+        }
         setConversationStatus('thinking');
-        void sendMessage(transcript, messagesRef.current, true);
+        void sendMessage(cleanedTranscript, messagesRef.current, true);
       } else {
         window.setTimeout(() => beginConversationListening(), 250);
       }
     };
     recognitionRef.current = recognition;
     setError(undefined);
-    setListening(true);
+    setConversationListening(true);
     setConversationStatus('listening');
     recognition.start();
   };
@@ -595,7 +674,7 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
 
       <div className="mt-4 flex w-fit items-center rounded-xl bg-secondary p-1 text-xs font-bold">
         <span className="rounded-lg bg-card px-4 py-2 text-primary shadow-sm">Chat</span>
-        <button type="button" onClick={toggleListening} className={`rounded-lg px-4 py-2 ${conversationActive ? 'bg-danger text-white' : 'text-muted-foreground hover:text-foreground'}`}>Voice <span className="ml-1 font-normal opacity-70">Beta</span></button>
+        <button type="button" onClick={toggleListening} title={reviewVoiceBeforeSend ? 'Start voice capture for review' : 'Start voice conversation'} className={`rounded-lg px-4 py-2 ${conversationActive ? 'bg-danger text-white' : 'text-muted-foreground hover:text-foreground'}`}>Voice <span className="ml-1 font-normal opacity-70">Beta</span></button>
         <span className="cursor-not-allowed rounded-lg px-4 py-2 text-muted-foreground/50" title="Planned for a future release">Avatar <span className="ml-1 font-normal">Soon</span></span>
       </div>
       {availableVoices.length > 0 && <div className="mt-2 flex items-center gap-2 self-end text-xs text-muted-foreground"><span>Voice</span><select value={selectedVoice} onChange={(event) => { setSelectedVoice(event.target.value); localStorage.setItem('schoolbuddy-voice', event.target.value); }} className="max-w-48 rounded-lg border border-border bg-card px-2 py-1.5 text-xs text-foreground"><option value="">Best available</option>{availableVoices.filter((voice) => voice.lang.startsWith((SPEECH_LANG[language] ?? 'en').split('-')[0])).map((voice) => <option key={voice.voiceURI} value={voice.name}>{voice.name}</option>)}</select></div>}
@@ -743,7 +822,7 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
       </div>
 
       {attachments.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{attachments.map((file, index) => <div key={`${file.name}-${index}`} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-sm"><PaperclipIcon width={13} className="text-primary" /><span className="max-w-40 truncate font-semibold text-foreground">{file.name}</span><button type="button" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove ${file.name}`} className="text-muted-foreground hover:text-danger"><XIcon width={12} /></button></div>)}</div>}
-      {listening && !conversationActive && <div className="mt-3 flex items-center gap-2 rounded-lg bg-danger/10 px-3 py-2 text-xs font-semibold text-danger"><span className="h-2 w-2 animate-pulse rounded-full bg-danger" />Listening — your words appear below in real time</div>}
+      {dictationListening && !conversationActive && <div className="mt-3 flex items-center gap-2 rounded-lg bg-danger/10 px-3 py-2 text-xs font-semibold text-danger"><span className="h-2 w-2 animate-pulse rounded-full bg-danger" />{useRecorderFirst ? 'Listening — transcript appears after you pause' : 'Listening — your words appear below in real time'}</div>}
       {transcribing && <div className="mt-3 flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary"><span className="h-2 w-2 animate-pulse rounded-full bg-primary" />Transcribing your recording…</div>}
       <form onSubmit={send} className="mt-3 flex items-center gap-2 rounded-xl border border-border bg-card p-2 shadow-md">
         <input ref={fileInputRef} type="file" multiple accept=".pdf,.txt,.jpg,.jpeg,.png,.webp" className="hidden" onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ''; }} />
@@ -755,7 +834,7 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
           placeholder={t('chat.placeholder')}
           className="flex-1 bg-transparent px-2 py-1.5 text-sm text-foreground outline-none"
         />
-        <button type="button" onClick={toggleDictation} disabled={loading || transcribing || conversationActive} aria-label={listening && !conversationActive ? 'Stop voice dictation' : 'Start voice dictation'} title={listening && !conversationActive ? 'Stop dictation' : 'Dictate message'} className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${listening && !conversationActive ? 'bg-danger text-white' : 'text-muted-foreground hover:bg-secondary hover:text-primary'} disabled:opacity-35`}><MicIcon width={17} /></button>
+        <button type="button" onClick={toggleDictation} disabled={loading || transcribing || conversationActive} aria-label={dictationListening ? 'Stop voice dictation' : 'Start voice dictation'} title={dictationListening ? 'Stop dictation' : 'Dictate message'} className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${dictationListening ? 'bg-danger text-white' : 'text-muted-foreground hover:bg-secondary hover:text-primary'} disabled:opacity-35`}><MicIcon width={17} /></button>
         <button
           type="submit"
           disabled={!input.trim() || loading}
