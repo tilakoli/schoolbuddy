@@ -17,7 +17,8 @@
     "signOut": "Sign out",
     "signingOut": "Signing out…",
     "contactUs": "Contact us",
-    "login": "Login"
+    "login": "Login",
+    "loading": "Loading…"
   },
   "dashboard": {
     "welcomeBack": "Welcome back",
@@ -127,6 +128,35 @@
       "textSearchOnly": "Material search uses keywords and up to five excerpts. It may miss relevant wording; page numbers are not available.",
       "attachmentOneTurn": "The original file is not stored. Extracted evidence is saved with this answer’s chat history."
     }
+  },
+  "lessons": {
+    "promptWithName": "What do you want to learn, {name}?",
+    "prompt": "What do you want to learn?",
+    "placeholder": "Ask a question, or upload something to ask about…",
+    "upload": "Upload",
+    "record": "Record",
+    "recording": "Listening…",
+    "transcribing": "Transcribing…",
+    "title": "Lessons",
+    "empty": "Nothing here yet — your lessons will show up here once you ask something.",
+    "recordError": "Microphone access was denied. Allow microphone permission in your browser and try again.",
+    "recordUnsupported": "Microphone recording requires Chrome, Edge, Safari, or Firefox over HTTPS or localhost.",
+    "transcribeFailed": "I could not hear that clearly. Please try again."
+  },
+  "guided": {
+    "chooseSubject": "Choose a subject",
+    "pickSubject": "Choose a subject",
+    "pickChapter": "Choose a chapter",
+    "noSubjects": "You're not enrolled in any subjects yet.",
+    "noChapters": "Your teacher hasn't published any chapters for this subject yet.",
+    "continueWithoutChapter": "Continue without a chapter",
+    "subject": "Subject",
+    "exit": "Exit",
+    "materials": "Materials",
+    "notes": "Notes",
+    "noMaterials": "No materials published for this chapter yet.",
+    "noNotes": "No notes available yet.",
+    "openFile": "Open file"
   },
   "form": {
     "class": "Class",

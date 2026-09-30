@@ -5,8 +5,9 @@ import ReactMarkdown from 'react-markdown';
 import ChatSources from '@/components/ChatSources';
 import type { ChatGrounding } from '@shared/domain/chat';
 import type { Role } from '@shared/domain/profile';
-import { CopyIcon, HistoryIcon, MicIcon, PaperclipIcon, PlusIcon, RefreshIcon, SendIcon, SparkleIcon, SpeakerIcon, SpeakerOffIcon, ThumbDownIcon, ThumbUpIcon, TrashIcon, XIcon } from '@/components/icons';
+import { BookIcon, CheckIcon, CopyIcon, FileTextIcon, HistoryIcon, MicIcon, PaperclipIcon, PlusIcon, RefreshIcon, SendIcon, SparkleIcon, SpeakerIcon, SpeakerOffIcon, ThumbDownIcon, ThumbUpIcon, TrashIcon, XIcon } from '@/components/icons';
 import { useLanguage } from '@/components/LanguageProvider';
+import { takeChatHandoff } from '@/lib/chatHandoff';
 import { stripMarkdownForSpeech } from '@/lib/markdown';
 import { createClient } from '@/lib/supabase/client';
 
@@ -49,6 +50,20 @@ interface ChatSession {
   id: string;
   title: string;
   updated_at: string;
+  class_id?: string | null;
+  chapter?: string | null;
+}
+
+interface SubjectOption {
+  id: string;
+  label: string;
+}
+
+interface GuidedMaterial {
+  id: string;
+  title: string;
+  chapter: string | null;
+  summary: string | null;
 }
 
 const SPEECH_LANG: Record<string, string> = { en: 'en-US', hi: 'hi-IN', te: 'te-IN' };
@@ -100,6 +115,17 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
   const [conversationStatus, setConversationStatus] = useState<'listening' | 'thinking' | 'speaking'>('listening');
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [selectedVoice, setSelectedVoice] = useState('');
+  const [guidedClassId, setGuidedClassId] = useState<string | null>(null);
+  const [guidedChapter, setGuidedChapter] = useState<string | null>(null);
+  const [guidedLabel, setGuidedLabel] = useState('');
+  const [pickerStage, setPickerStage] = useState<'closed' | 'subject' | 'chapter'>('closed');
+  const [subjectOptions, setSubjectOptions] = useState<SubjectOption[]>([]);
+  const [chapterOptions, setChapterOptions] = useState<string[]>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [guidedMaterials, setGuidedMaterials] = useState<GuidedMaterial[]>([]);
+  const [selectedMaterialId, setSelectedMaterialId] = useState<string | null>(null);
+  const [materialFiles, setMaterialFiles] = useState<{ path: string; mime: string; url: string }[]>([]);
+  const [materialFilesLoading, setMaterialFilesLoading] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -147,39 +173,90 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
   const loadSessions = async () => {
     const supabase = createClient();
     if (!supabase) return;
-    const { data } = await supabase.from('ai_chat_sessions').select('id, title, updated_at').order('updated_at', { ascending: false });
+    const { data } = await supabase.from('ai_chat_sessions').select('id, title, updated_at, class_id, chapter').order('updated_at', { ascending: false });
     setSessions(data ?? []);
   };
 
-  useEffect(() => {
-    const restoreChat = async () => {
-      const supabase = createClient();
-      if (!supabase) return;
-      const { data } = await supabase
-        .from('ai_chat_sessions')
-        .select('id, title, updated_at')
-        .order('updated_at', { ascending: false });
-      const restoredSessions = data ?? [];
-      setSessions(restoredSessions);
+  const loadGuidedMaterials = async (classId: string, chapter: string | null) => {
+    const supabase = createClient();
+    if (!supabase) return;
+    let query = supabase.from('materials').select('id, title, chapter, summary').eq('class_id', classId).eq('status', 'extracted');
+    if (chapter) query = query.eq('chapter', chapter);
+    const { data } = await query.order('created_at', { ascending: false });
+    setGuidedMaterials(data ?? []);
+    setSelectedMaterialId(null);
+    setMaterialFiles([]);
+  };
 
-      const storedSessionId = localStorage.getItem(activeChatStorageKey);
-      if (storedSessionId === NEW_CHAT_MARKER) return;
-      const sessionToRestore = restoredSessions.find((session) => session.id === storedSessionId) ?? restoredSessions[0];
-      if (!sessionToRestore) return;
+  const loadGuidedLabel = async (classId: string) => {
+    const supabase = createClient();
+    if (!supabase) return;
+    const { data } = await supabase.from('classes').select('name, subjects(name)').eq('id', classId).single();
+    const row = data as unknown as { name: string; subjects: { name: string } | null } | null;
+    setGuidedLabel(row?.subjects?.name ?? row?.name ?? '');
+  };
 
-      const { data: restoredMessages, error: loadError } = await supabase
-        .from('ai_chat_messages')
-        .select('id, role, text, grounding, feedback, feedback_reason')
-        .eq('session_id', sessionToRestore.id)
-        .order('created_at', { ascending: true })
-        .order('id', { ascending: true });
-      if (loadError) return;
-      setMessages((restoredMessages ?? []) as ChatMessage[]);
-      setActiveSessionId(sessionToRestore.id);
-      localStorage.setItem(activeChatStorageKey, sessionToRestore.id);
-    };
-    void restoreChat();
-  }, [activeChatStorageKey]);
+  const selectGuidedMaterial = async (material: GuidedMaterial) => {
+    setSelectedMaterialId(material.id);
+    setMaterialFilesLoading(true);
+    setMaterialFiles([]);
+    const supabase = createClient();
+    if (!supabase) { setMaterialFilesLoading(false); return; }
+    const { data: files } = await supabase.from('material_files').select('file_path, mime_type').eq('material_id', material.id).order('position');
+    const signed = await Promise.all((files ?? []).map(async (file) => {
+      const { data: signedData } = await supabase.storage.from('materials').createSignedUrl(file.file_path, 3600);
+      return { path: file.file_path, mime: file.mime_type, url: signedData?.signedUrl ?? '' };
+    }));
+    setMaterialFiles(signed.filter((file) => file.url));
+    setMaterialFilesLoading(false);
+  };
+
+  const openPicker = async () => {
+    setPickerStage('subject');
+    setPickerLoading(true);
+    const supabase = createClient();
+    if (!supabase) { setPickerLoading(false); return; }
+    const { data } = await supabase.from('classes').select('id, name, subjects(name)').order('name');
+    const rows = (data ?? []) as unknown as { id: string; name: string; subjects: { name: string } | null }[];
+    setSubjectOptions(rows.map((row) => ({ id: row.id, label: row.subjects?.name ?? row.name })));
+    setPickerLoading(false);
+  };
+
+  const closePicker = () => setPickerStage('closed');
+
+  const pickSubject = async (option: SubjectOption) => {
+    setPickerLoading(true);
+    setGuidedClassId(option.id);
+    setGuidedLabel(option.label);
+    const supabase = createClient();
+    if (!supabase) { setPickerLoading(false); return; }
+    const { data } = await supabase.from('materials').select('chapter').eq('class_id', option.id).eq('status', 'extracted');
+    const chapters = [...new Set((data ?? []).map((row) => row.chapter).filter((chapter): chapter is string => Boolean(chapter)))];
+    setChapterOptions(chapters);
+    setPickerStage('chapter');
+    setPickerLoading(false);
+  };
+
+  const startGuidedLesson = async (chapter: string | null) => {
+    if (!guidedClassId) return;
+    setGuidedChapter(chapter);
+    setPickerStage('closed');
+    setMessages([]);
+    setActiveSessionId(null);
+    setAttachments([]);
+    setError(undefined);
+    localStorage.setItem(activeChatStorageKey, NEW_CHAT_MARKER);
+    await loadGuidedMaterials(guidedClassId, chapter);
+  };
+
+  const exitGuidedLesson = () => {
+    setGuidedClassId(null);
+    setGuidedChapter(null);
+    setGuidedLabel('');
+    setGuidedMaterials([]);
+    setSelectedMaterialId(null);
+    setMaterialFiles([]);
+  };
 
   useEffect(() => { messagesRef.current = messages; }, [messages]);
 
@@ -245,7 +322,7 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
 
   const startNewChat = () => {
     if (loading) return;
-    if (messages.length === 0 && !activeSessionId) return;
+    if (messages.length === 0 && !activeSessionId && !guidedClassId) return;
     window.speechSynthesis?.cancel();
     recognitionRef.current?.abort();
     setMessages([]);
@@ -253,6 +330,7 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
     setError(undefined);
     setHistoryOpen(false);
     setAttachments([]);
+    exitGuidedLesson();
     localStorage.setItem(activeChatStorageKey, NEW_CHAT_MARKER);
   };
 
@@ -486,7 +564,7 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
     addFiles(Array.from(event.dataTransfer.files));
   };
 
-  const encodeAttachments = () => Promise.all(attachments.map((file) => new Promise<{ name: string; mimeType: string; data: string }>((resolve, reject) => {
+  const encodeAttachments = (files: File[] = attachments) => Promise.all(files.map((file) => new Promise<{ name: string; mimeType: string; data: string }>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve({ name: file.name, mimeType: file.type, data: String(reader.result).split(',')[1] ?? '' });
     reader.onerror = () => reject(new Error(`Could not read ${file.name}.`));
@@ -502,16 +580,26 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
     setError(undefined);
     setLoading(true);
     try {
-      const { data, error: loadError } = await supabase
-        .from('ai_chat_messages')
-        .select('id, role, text, grounding, feedback, feedback_reason')
-        .eq('session_id', id)
-        .order('created_at', { ascending: true })
-        .order('id', { ascending: true });
+      const [{ data, error: loadError }, { data: sessionRow }] = await Promise.all([
+        supabase
+          .from('ai_chat_messages')
+          .select('id, role, text, grounding, feedback, feedback_reason')
+          .eq('session_id', id)
+          .order('created_at', { ascending: true })
+          .order('id', { ascending: true }),
+        supabase.from('ai_chat_sessions').select('class_id, chapter').eq('id', id).single(),
+      ]);
       if (loadError) throw new Error(t('chat.historyLoadFailed'));
       setMessages((data ?? []) as ChatMessage[]);
       setActiveSessionId(id);
       localStorage.setItem(activeChatStorageKey, id);
+      if (sessionRow?.class_id) {
+        setGuidedClassId(sessionRow.class_id);
+        setGuidedChapter(sessionRow.chapter ?? null);
+        await Promise.all([loadGuidedMaterials(sessionRow.class_id, sessionRow.chapter ?? null), loadGuidedLabel(sessionRow.class_id)]);
+      } else {
+        exitGuidedLesson();
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('chat.historyLoadFailed'));
     } finally {
@@ -546,7 +634,7 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
     setSessions((current) => current.map((item) => item.id === session.id ? { ...item, title } : item));
   };
 
-  const sendMessage = async (textValue: string, priorMessages: ChatMessage[] = messages, voiceTurn = false) => {
+  const sendMessage = async (textValue: string, priorMessages: ChatMessage[] = messages, voiceTurn = false, filesOverride?: File[]) => {
     const text = textValue.trim();
     if (!text || loading) return;
     const nextMessages: ChatMessage[] = [...priorMessages, { role: 'user', text }];
@@ -557,11 +645,11 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
     setError(undefined);
 
     try {
-      const encodedAttachments = await encodeAttachments();
+      const encodedAttachments = await encodeAttachments(filesOverride);
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: nextMessages.map(({ role, text: messageText }) => ({ role, text: messageText })), sessionId: activeSessionId, language, attachments: encodedAttachments }),
+        body: JSON.stringify({ messages: nextMessages.map(({ role, text: messageText }) => ({ role, text: messageText })), sessionId: activeSessionId, language, attachments: encodedAttachments, classId: guidedClassId, chapter: guidedChapter }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Something went wrong.');
@@ -591,6 +679,60 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
       requestAnimationFrame(() => listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' }));
     }
   };
+
+  // Declared after openSession/sendMessage so it can call them directly —
+  // must run once both are defined for the same reason.
+  useEffect(() => {
+    const restoreChat = async () => {
+      // A student arriving from the dashboard's Lessons landing either wants
+      // to reopen a past conversation or send a fresh draft (possibly with
+      // files/a voice transcript already attached) — either way, that takes
+      // priority over the usual "restore whatever was last open" behavior.
+      const handoff = takeChatHandoff();
+      if (handoff?.openSessionId) {
+        await loadSessions();
+        await openSession(handoff.openSessionId);
+        return;
+      }
+      if (handoff?.draft) {
+        await loadSessions();
+        await sendMessage(handoff.draft.text, [], false, handoff.draft.files);
+        return;
+      }
+
+      const supabase = createClient();
+      if (!supabase) return;
+      const { data } = await supabase
+        .from('ai_chat_sessions')
+        .select('id, title, updated_at, class_id, chapter')
+        .order('updated_at', { ascending: false });
+      const restoredSessions = data ?? [];
+      setSessions(restoredSessions);
+
+      const storedSessionId = localStorage.getItem(activeChatStorageKey);
+      if (storedSessionId === NEW_CHAT_MARKER) return;
+      const sessionToRestore = restoredSessions.find((session) => session.id === storedSessionId) ?? restoredSessions[0];
+      if (!sessionToRestore) return;
+
+      const { data: restoredMessages, error: loadError } = await supabase
+        .from('ai_chat_messages')
+        .select('id, role, text, grounding, feedback, feedback_reason')
+        .eq('session_id', sessionToRestore.id)
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true });
+      if (loadError) return;
+      setMessages((restoredMessages ?? []) as ChatMessage[]);
+      setActiveSessionId(sessionToRestore.id);
+      localStorage.setItem(activeChatStorageKey, sessionToRestore.id);
+      if (sessionToRestore.class_id) {
+        setGuidedClassId(sessionToRestore.class_id);
+        setGuidedChapter(sessionToRestore.chapter ?? null);
+        await Promise.all([loadGuidedMaterials(sessionToRestore.class_id, sessionToRestore.chapter ?? null), loadGuidedLabel(sessionToRestore.class_id)]);
+      }
+    };
+    void restoreChat();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- openSession/sendMessage are recreated every render; this must run once on mount, not on every keystroke.
+  }, [activeChatStorageKey]);
 
   const send = async (event: FormEvent, override?: string) => {
     event.preventDefault();
@@ -630,7 +772,7 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
   };
 
   return (
-    <div onDragEnter={(event) => { event.preventDefault(); setDragging(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={(event) => { if (event.currentTarget === event.target) setDragging(false); }} onDrop={handleDrop} className="relative mx-auto flex h-[calc(100vh-5rem)] w-full max-w-4xl flex-1 flex-col px-6 py-6 md:h-[calc(100vh-76px)] md:py-8">
+    <div onDragEnter={(event) => { event.preventDefault(); setDragging(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={(event) => { if (event.currentTarget === event.target) setDragging(false); }} onDrop={handleDrop} className={`relative mx-auto flex h-[calc(100vh-5rem)] w-full flex-1 flex-col py-6 md:h-[calc(100vh-76px)] md:py-8 ${guidedClassId ? 'max-w-6xl px-4' : 'max-w-4xl px-6'}`}>
       {dragging && <div className="pointer-events-none absolute inset-4 z-30 flex items-center justify-center rounded-2xl border-2 border-dashed border-primary bg-primary-light/90 text-center text-sm font-bold text-primary shadow-lg">Drop up to 3 files here</div>}
       {conversationActive && <div className="absolute inset-x-6 bottom-24 z-20 rounded-2xl border border-primary/20 bg-[#171936] p-5 text-white shadow-2xl">
         <div className="flex items-center justify-between gap-4">
@@ -647,6 +789,17 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {role === 'student' && (
+            <button
+              type="button"
+              onClick={openPicker}
+              disabled={loading}
+              className="flex h-9 items-center gap-2 rounded-lg border border-border px-3 text-xs font-semibold text-foreground hover:bg-secondary"
+            >
+              <BookIcon width={16} height={16} />
+              <span className="hidden sm:inline">{t('guided.chooseSubject')}</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={startNewChat}
@@ -677,7 +830,7 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
         <button type="button" onClick={toggleListening} title={reviewVoiceBeforeSend ? 'Start voice capture for review' : 'Start voice conversation'} className={`rounded-lg px-4 py-2 ${conversationActive ? 'bg-danger text-white' : 'text-muted-foreground hover:text-foreground'}`}>Voice <span className="ml-1 font-normal opacity-70">Beta</span></button>
         <span className="cursor-not-allowed rounded-lg px-4 py-2 text-muted-foreground/50" title="Planned for a future release">Avatar <span className="ml-1 font-normal">Soon</span></span>
       </div>
-      {availableVoices.length > 0 && <div className="mt-2 flex items-center gap-2 self-end text-xs text-muted-foreground"><span>Voice</span><select value={selectedVoice} onChange={(event) => { setSelectedVoice(event.target.value); localStorage.setItem('schoolbuddy-voice', event.target.value); }} className="max-w-48 rounded-lg border border-border bg-card px-2 py-1.5 text-xs text-foreground"><option value="">Best available</option>{availableVoices.filter((voice) => voice.lang.startsWith((SPEECH_LANG[language] ?? 'en').split('-')[0])).map((voice) => <option key={voice.voiceURI} value={voice.name}>{voice.name}</option>)}</select></div>}
+      {availableVoices.length > 0 && <div className="mt-2 flex items-center gap-2 self-end text-xs text-muted-foreground"><span>Voice</span><select value={selectedVoice} onChange={(event) => { setSelectedVoice(event.target.value); localStorage.setItem('schoolbuddy-voice', event.target.value); }} className="max-w-48 rounded-lg border border-border bg-card px-2 py-1.5 text-xs text-foreground"><option value="">Best available</option>{availableVoices.filter((voice) => voice.lang.startsWith((SPEECH_LANG[language] ?? 'en').split('-')[0])).map((voice, index) => <option key={`${voice.voiceURI}-${voice.lang}-${index}`} value={voice.name}>{voice.name}</option>)}</select></div>}
 
       {historyOpen && <div className="fixed inset-0 z-10" onClick={() => setHistoryOpen(false)} />}
 
@@ -731,7 +884,61 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
         </div>
       )}
 
-      <div ref={listRef} className="mt-6 flex-1 space-y-3 overflow-y-auto">
+      {guidedClassId && (
+        <div className="mt-4 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary-light px-3 py-2 text-xs font-semibold text-primary">
+          <BookIcon width={14} height={14} />
+          <span className="truncate">{guidedLabel || t('guided.subject')}{guidedChapter ? ` · ${guidedChapter}` : ''}</span>
+          <button type="button" onClick={exitGuidedLesson} className="ml-auto shrink-0 rounded-md px-2 py-1 text-primary/70 hover:bg-card hover:text-primary">
+            {t('guided.exit')}
+          </button>
+        </div>
+      )}
+
+      <div className={guidedClassId ? 'mt-4 grid flex-1 gap-4 overflow-hidden lg:grid-cols-[240px_1fr_260px]' : 'flex flex-1 flex-col'}>
+        {guidedClassId && (
+          <aside className="hidden overflow-y-auto rounded-xl border border-border bg-card p-3 lg:block">
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('guided.materials')}</p>
+            <div className="mt-2 space-y-1.5">
+              {guidedMaterials.length === 0 && <p className="text-xs text-muted-foreground">{t('guided.noMaterials')}</p>}
+              {guidedMaterials.map((material) => (
+                <button
+                  key={material.id}
+                  type="button"
+                  onClick={() => selectGuidedMaterial(material)}
+                  className={`flex w-full items-start gap-2 rounded-lg border px-2.5 py-2 text-left text-xs ${
+                    selectedMaterialId === material.id ? 'border-primary bg-primary-light text-primary' : 'border-border text-foreground hover:bg-secondary'
+                  }`}
+                >
+                  <FileTextIcon width={13} className="mt-0.5 shrink-0" />
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold">{material.title}</span>
+                    {material.chapter && <span className="block truncate text-[10px] text-muted-foreground">{material.chapter}</span>}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {materialFilesLoading && <p className="mt-3 text-xs text-muted-foreground">{t('common.loading')}</p>}
+            {materialFiles.length > 0 && (
+              <div className="mt-3 space-y-2 border-t border-border-soft pt-3">
+                {materialFiles.map((file) => (
+                  <div key={file.path} className="rounded-lg border border-border p-1.5">
+                    {file.mime.startsWith('image/') ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- signed Supabase Storage URL, not a static asset next/image can optimize.
+                      <img src={file.url} alt="" className="max-h-40 w-full rounded object-contain" />
+                    ) : file.mime === 'application/pdf' ? (
+                      <embed src={file.url} type="application/pdf" className="h-40 w-full rounded" />
+                    ) : (
+                      <a href={file.url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-primary underline">{t('guided.openFile')}</a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </aside>
+        )}
+
+        <div className="flex min-w-0 flex-1 flex-col">
+      <div ref={listRef} className="flex-1 space-y-3 overflow-y-auto">
         {messages.length === 0 && (
           <div className="animate-fade-up flex h-full flex-col items-center justify-center text-center" style={{ animationDelay: '0.08s' }}>
             <div className="ai-glow flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/10">
@@ -844,6 +1051,74 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
           <SendIcon className="h-4 w-4" />
         </button>
       </form>
+        </div>
+
+        {guidedClassId && (
+          <aside className="hidden overflow-y-auto rounded-xl border border-border bg-card p-3 lg:block">
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('guided.notes')}</p>
+            {guidedMaterials.length === 0 && <p className="mt-2 text-xs text-muted-foreground">{t('guided.noNotes')}</p>}
+            <div className="mt-2 space-y-3">
+              {(selectedMaterialId ? guidedMaterials.filter((material) => material.id === selectedMaterialId) : guidedMaterials).map((material) => (
+                <div key={material.id} className="rounded-lg border border-border-soft p-2">
+                  <p className="text-xs font-semibold text-foreground">{material.title}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{material.summary || t('guided.noNotes')}</p>
+                </div>
+              ))}
+            </div>
+          </aside>
+        )}
+      </div>
+
+      {pickerStage !== 'closed' && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" onClick={closePicker}>
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-4 shadow-xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-foreground">{pickerStage === 'subject' ? t('guided.pickSubject') : t('guided.pickChapter')}</h3>
+              <button type="button" onClick={closePicker} aria-label="Close" className="text-muted-foreground hover:text-foreground">
+                <XIcon width={16} height={16} />
+              </button>
+            </div>
+            {pickerLoading && <p className="mt-4 text-sm text-muted-foreground">{t('common.loading')}</p>}
+            {!pickerLoading && pickerStage === 'subject' && (
+              <div className="mt-3 max-h-80 space-y-1 overflow-y-auto">
+                {subjectOptions.length === 0 && <p className="text-sm text-muted-foreground">{t('guided.noSubjects')}</p>}
+                {subjectOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    type="button"
+                    onClick={() => pickSubject(option)}
+                    className="flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-secondary"
+                  >
+                    <BookIcon width={14} height={14} /> {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {!pickerLoading && pickerStage === 'chapter' && (
+              <div className="mt-3 max-h-80 space-y-1 overflow-y-auto">
+                {chapterOptions.length === 0 && <p className="text-sm text-muted-foreground">{t('guided.noChapters')}</p>}
+                {chapterOptions.map((chapter) => (
+                  <button
+                    key={chapter}
+                    type="button"
+                    onClick={() => startGuidedLesson(chapter)}
+                    className="flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2 text-left text-sm font-medium text-foreground hover:bg-secondary"
+                  >
+                    <CheckIcon width={14} height={14} /> {chapter}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => startGuidedLesson(null)}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 py-2 text-sm font-semibold text-muted-foreground hover:bg-secondary"
+                >
+                  {t('guided.continueWithoutChapter')}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

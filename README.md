@@ -134,7 +134,7 @@ Replies render as Markdown (`react-native-markdown-display`, since Gemini often 
 
 Conversations are persisted server-side (`supabase/migrations/0019_ai_chat_history.sql` and `0022_grounded_chat.sql`). Evidence metadata is saved with assistant messages so reopened history retains its source labels. The native view lists source names and limitations; the web view additionally shows evidence snapshots and links to authorized records.
 
-Current limits: chat is read-only; it cannot manage accounts/classes or expose grades, submissions, answer keys, or attendance. Student accounts do not retrieve teacher-uploaded materials until a deliberate student-sharing feature exists. Material retrieval is keyword-based text search over up to five excerpts, not semantic/vector search, and extracted content has no page-number metadata. Source cards communicate evidence, not a fabricated accuracy percentage.
+Current limits: chat is read-only; it cannot manage accounts/classes or expose grades, submissions, answer keys, or attendance. Material retrieval is keyword-based text search over up to five excerpts, not semantic/vector search, and extracted content has no page-number metadata. Source cards communicate evidence, not a fabricated accuracy percentage. On web, a student can additionally access their own enrolled classes' materials through a curriculum-scoped **Guided lessons** flow (see "Guided lessons" in `web/README.md`'s AI Chat section) — this is web-only for now; on mobile, student accounts still do not retrieve teacher-uploaded materials at all.
 
 ## Multi-language support
 

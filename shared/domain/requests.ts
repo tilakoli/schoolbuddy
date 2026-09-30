@@ -26,11 +26,19 @@ export interface ChatRequest {
   sessionId?: string | null;
   language?: string;
   attachments?: { name: string; mimeType: string; data: string }[];
+  // A guided lesson's curriculum scope — a student's own enrolled class
+  // offering, and optionally one of its teacher-published chapters. When
+  // present, evidence retrieval skips free-text search and deterministically
+  // uses this class/chapter's materials instead (see chat_school_context).
+  classId?: string | null;
+  chapter?: string | null;
 }
 export function isChatRequest(value: unknown): value is ChatRequest {
   if (!isRecord(value) || !Array.isArray(value.messages) || !value.messages.length || value.messages.length > 60) return false;
   if (value.sessionId != null && !isUuid(value.sessionId)) return false;
   if (value.language !== undefined && !['en', 'hi', 'te'].includes(value.language as string)) return false;
+  if (value.classId != null && !isUuid(value.classId)) return false;
+  if (value.chapter != null && (typeof value.chapter !== 'string' || value.chapter.length > 160)) return false;
   const attachments = value.attachments;
   if (attachments !== undefined && (!Array.isArray(attachments) || attachments.length > 3 ||
       !attachments.every((file) => isRecord(file) && typeof file.name === 'string' && file.name.length > 0 && file.name.length <= 180 &&

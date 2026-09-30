@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getEffectiveStatus } from '@/components/assignments/types';
+import { TILE_PALETTE } from '@/components/dashboard/DashboardBanner';
+import { AnimatedBarChart, DashboardPanel, ProgressBreakdown } from '@/components/dashboard/DashboardWidgets';
 import { CheckIcon, ClipboardIcon, TrendingUpIcon } from '@/components/icons';
 import EmptyState from '@/components/shared/EmptyState';
 import StatTile from '@/components/shared/StatTile';
@@ -76,6 +78,54 @@ export default async function PerformancePage() {
     const classLabels = await buildClassLabels(supabase, classIds);
     const { gradedCount, avgPercent, passRate } = computeStats(submissions);
 
+    // Moved here from the dashboard — workload/scheduling stats, distinct
+    // from the grade-based stats above.
+    interface ClassRow {
+      id: string;
+      name: string;
+      period: string | null;
+      room: string | null;
+      subjects: { name: string } | null;
+      class_groups: { name: string } | null;
+    }
+    const { data: classRows } = await supabase.from('classes').select('id, name, period, room, subjects(name), class_groups(name)').order('name');
+    const classes = ((classRows ?? []) as unknown as ClassRow[]).map((row) => ({
+      ...row,
+      subjectName: row.subjects?.name ?? row.name,
+      groupName: row.class_groups?.name ?? null,
+    }));
+
+    interface WorkloadAssignmentRow {
+      id: string;
+      title: string;
+      due_at: string | null;
+      status: 'active' | 'ended' | 'cancelled';
+      classes: { name: string } | null;
+    }
+    const { data: assignmentRowsForWorkload } = await supabase
+      .from('assignments')
+      .select('id, title, due_at, status, classes(name)')
+      .order('due_at', { ascending: true, nullsFirst: false });
+    const workloadAssignments = ((assignmentRowsForWorkload ?? []) as unknown as WorkloadAssignmentRow[]).filter(
+      (a) => getEffectiveStatus(a) !== 'cancelled'
+    );
+
+    const now = new Date();
+    const dueSoonCount = workloadAssignments.filter((a) => {
+      if (!a.due_at) return false;
+      const diffDays = (new Date(a.due_at).getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+      return diffDays >= 0 && diffDays < 7;
+    }).length;
+    const overdueCount = workloadAssignments.filter((a) => a.due_at && new Date(a.due_at).getTime() < now.getTime()).length;
+    const submittedIds = new Set(submissions.map((s) => s.assignment_id));
+
+    const workloadStats = [
+      { label: t('dashboard.statEnrolledClasses'), value: String(classes.length) },
+      { label: t('dashboard.statDueThisWeek'), value: String(dueSoonCount) },
+      { label: t('dashboard.statOverdue'), value: String(overdueCount) },
+      { label: t('dashboard.statTotalAssignments'), value: String(workloadAssignments.length) },
+    ];
+
     return (
       <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
         <h1 className="text-2xl font-bold text-foreground">{t('nav.performance')}</h1>
@@ -85,6 +135,39 @@ export default async function PerformancePage() {
           <StatTile icon={TrendingUpIcon} tone="primary" value={avgPercent != null ? `${avgPercent}%` : '—'} label={t('students.averageScore')} />
           <StatTile icon={CheckIcon} tone="success" value={passRate != null ? `${passRate}%` : '—'} label={t('students.passRate')} style={{ animationDelay: '0.05s' }} />
           <StatTile icon={ClipboardIcon} tone="info" value={String(gradedCount)} label={t('students.graded')} style={{ animationDelay: '0.1s' }} />
+        </div>
+
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {workloadStats.map((stat, i) => {
+            const tile = TILE_PALETTE[i % TILE_PALETTE.length];
+            return (
+              <div key={stat.label} className={`rounded-xl ${tile.bg} p-4`}>
+                <p className={`text-2xl font-bold ${tile.text}`}>{stat.value}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{stat.label}</p>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
+          <DashboardPanel title="Workload by subject" subtitle="Assignments currently visible to you" action={{ href: '/assignments', label: t('dashboard.viewAssignments') }}>
+            <AnimatedBarChart
+              data={classes.map((item) => ({
+                label: item.subjectName,
+                value: workloadAssignments.filter((assignment) => assignment.classes?.name === item.subjectName).length,
+              }))}
+              valueLabel="Number of assignments by subject"
+            />
+          </DashboardPanel>
+          <DashboardPanel title="Learning progress" subtitle="Your assignment activity">
+            <ProgressBreakdown
+              items={[
+                { label: 'Submitted', value: submittedIds.size, total: workloadAssignments.length, tone: 'primary' },
+                { label: 'Graded', value: gradedCount, total: workloadAssignments.length, tone: 'success' },
+                { label: 'Still to submit', value: Math.max(0, workloadAssignments.length - submittedIds.size), total: workloadAssignments.length, tone: 'warning' },
+              ]}
+            />
+          </DashboardPanel>
         </div>
 
         <h2 className="mt-10 mb-4 text-lg font-bold text-foreground">{t('performance.history')}</h2>

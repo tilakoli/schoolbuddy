@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const { user, supabase } = auth;
   const body: unknown = await request.json().catch(() => null);
   if (!isChatRequest(body)) return NextResponse.json({ error: 'Invalid or oversized conversation.' }, { status: 400 });
-  const { messages, sessionId } = body;
+  const { messages, sessionId, classId, chapter } = body;
   if (sessionId) {
     const { data: session, error } = await supabase.from('ai_chat_sessions')
       .select('id').eq('id', sessionId).eq('user_id', user.id).single();
@@ -50,7 +50,9 @@ export async function POST(request: Request) {
       if (!resolvedSessionId) {
         const firstUserText = messages.find((m) => m.role === 'user')?.text ?? 'New chat';
         const title = firstUserText.length > 40 ? `${firstUserText.slice(0, 40)}…` : firstUserText;
-        const { data: session } = await admin.from('ai_chat_sessions').insert({ user_id: user.id, title }).select('id').single();
+        const { data: session } = await admin.from('ai_chat_sessions')
+          .insert({ user_id: user.id, title, class_id: classId ?? null, chapter: chapter ?? null })
+          .select('id').single();
         resolvedSessionId = session?.id;
       } else {
         await admin.from('ai_chat_sessions').update({ updated_at: new Date().toISOString() }).eq('id', resolvedSessionId).eq('user_id', user.id);

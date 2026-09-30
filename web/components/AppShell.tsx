@@ -16,10 +16,8 @@ const PAGE_NAMES: Record<string, string> = {
   students: 'Students',
   subjects: 'Subjects',
   assignments: 'Assignments',
-  exams: 'Exams',
   performance: 'Performance',
   timetable: 'Timetable',
-  'learning-videos': 'Learning videos',
   settings: 'Settings',
 };
 
@@ -31,7 +29,7 @@ export default function AppShell({ role, name, children }: { role: Role; name: s
   const pageName = PAGE_NAMES[activeSegment] ?? 'School Buddy';
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-background md:flex-row">
+    <div className="flex min-h-screen w-full flex-col bg-background">
       <header className="sticky top-0 z-30 flex items-center justify-between bg-[#171936] px-4 py-3 text-white shadow-md md:hidden">
         <span className="font-heading text-sm font-semibold">{APP_CONFIG.name}</span>
         <button
@@ -43,12 +41,10 @@ export default function AppShell({ role, name, children }: { role: Role; name: s
         </button>
       </header>
 
-      {open && (
-        <div className="fixed inset-0 z-40 bg-foreground/30 md:hidden" onClick={() => setOpen(false)} />
-      )}
+      {open && <div className="fixed inset-0 z-40 bg-foreground/30" onClick={() => setOpen(false)} />}
 
       <div
-        className={`fixed inset-y-0 left-0 z-50 transition-transform duration-200 md:sticky md:top-0 md:z-auto md:h-screen md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 h-screen transition-transform duration-200 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
@@ -57,7 +53,7 @@ export default function AppShell({ role, name, children }: { role: Role; name: s
           <button
             onClick={() => setOpen(false)}
             aria-label="Close menu"
-            className="absolute right-3 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-white/70 hover:bg-white/10 md:hidden"
+            className="absolute right-3 top-4 flex h-8 w-8 items-center justify-center rounded-lg text-white/70 hover:bg-white/10"
           >
             <XIcon className="h-4 w-4" />
           </button>
@@ -66,9 +62,18 @@ export default function AppShell({ role, name, children }: { role: Role; name: s
 
       <div className="app-canvas min-w-0 flex-1">
         <header className="sticky top-0 z-20 hidden h-[76px] items-center justify-between border-b border-border-soft bg-card/90 px-6 backdrop-blur-xl md:flex xl:px-9">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><span>School Buddy</span><span className="text-muted-foreground-2">/</span><span className="text-primary">{pageName}</span></div>
-            <h1 className="mt-0.5 font-heading text-xl font-semibold text-foreground">{pageName}</h1>
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => setOpen(true)}
+              aria-label="Open menu"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border-soft text-foreground hover:bg-secondary"
+            >
+              <MenuIcon className="h-5 w-5" />
+            </button>
+            <div>
+              <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground"><span>School Buddy</span><span className="text-muted-foreground-2">/</span><span className="text-primary">{pageName}</span></div>
+              <h1 className="mt-0.5 font-heading text-xl font-semibold text-foreground">{pageName}</h1>
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="hidden w-52 lg:block"><LanguageSwitcher /></div>
