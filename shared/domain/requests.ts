@@ -51,6 +51,16 @@ export function isChatRequest(value: unknown): value is ChatRequest {
     value.messages[value.messages.length - 1].role === 'user';
 }
 
+export interface DiscussionMessageRequest {
+  text: string;
+  language?: string;
+}
+export function isDiscussionMessageRequest(value: unknown): value is DiscussionMessageRequest {
+  if (!isRecord(value) || typeof value.text !== 'string' || !value.text.trim().length || value.text.length > 20000) return false;
+  if (value.language !== undefined && !['en', 'hi', 'te'].includes(value.language as string)) return false;
+  return true;
+}
+
 export function isMaterialPath(path: string, classId: string, materialId: string): boolean {
   const parts = path.split('/');
   return parts.length === 3 && parts[0] === classId && parts[1] === materialId &&

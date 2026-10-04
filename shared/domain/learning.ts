@@ -38,6 +38,15 @@ export function isSafeVideoUrl(value: string): boolean {
   }
 }
 
+export function isYoutubeUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && ['youtube.com', 'www.youtube.com', 'youtu.be'].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 export function getVideoEmbedUrl(value: string): string | null {
   if (!isSafeVideoUrl(value)) return null;
   const url = new URL(value);

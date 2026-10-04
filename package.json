@@ -45,6 +45,7 @@
   "devDependencies": {
     "@types/react": "~19.1.0",
     "babel-preset-expo": "~54.0.0",
+    "pdfkit": "^0.15.1",
     "react-native-worklets": "0.5.1",
     "tailwindcss": "^3.4.19",
     "typescript": "~5.9.2"
