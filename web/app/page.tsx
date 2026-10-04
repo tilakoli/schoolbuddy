@@ -60,8 +60,8 @@ const CAPABILITIES = [
   },
   {
     icon: CalendarIcon,
-    title: 'Timetable',
-    description: 'A real weekly schedule grid, built from actual class meeting times, for teachers and students alike.',
+    title: 'Class schedules',
+    description: 'Real meeting times, shown right alongside each subject — no separate timetable to check.',
     ai: false,
   },
   {

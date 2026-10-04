@@ -16,8 +16,8 @@ const PAGE_NAMES: Record<string, string> = {
   students: 'Students',
   subjects: 'Subjects',
   assignments: 'Assignments',
+  discussions: 'Discussions',
   performance: 'Performance',
-  timetable: 'Timetable',
   settings: 'Settings',
 };
 

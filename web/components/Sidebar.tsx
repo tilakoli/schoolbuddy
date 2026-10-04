@@ -6,7 +6,7 @@ import SignOutButton from '@/components/SignOutButton';
 import { APP_CONFIG } from '@/constants/config';
 import { useLanguage } from '@/components/LanguageProvider';
 import {
-  CalendarIcon,
+  BookIcon,
   ChatIcon,
   ClipboardIcon,
   GridIcon,
@@ -36,20 +36,24 @@ const NAV: Record<Role, { href: string; labelKey: string; icon: IconComponent }[
   ],
   teacher: [
     { href: '/dashboard', labelKey: 'nav.dashboard', icon: HomeIcon },
-    { href: '/ai-chat', labelKey: 'nav.aiChat', icon: ChatIcon },
+    // AI Chat is hidden from the teacher nav now that Discussions covers
+    // this role's AI use case — route/component/code all still live at
+    // /ai-chat, just unlinked here. Re-add this entry to bring it back.
+    // { href: '/ai-chat', labelKey: 'nav.aiChat', icon: ChatIcon },
+    { href: '/discussions', labelKey: 'nav.discussions', icon: BookIcon },
     { href: '/classes', labelKey: 'nav.classes', icon: GridIcon },
     { href: '/students', labelKey: 'nav.students', icon: UsersIcon },
     { href: '/assignments', labelKey: 'nav.assignments', icon: ClipboardIcon },
     { href: '/performance', labelKey: 'nav.performance', icon: TrendingUpIcon },
-    { href: '/timetable', labelKey: 'nav.timetable', icon: CalendarIcon },
   ],
   student: [
     { href: '/dashboard', labelKey: 'nav.dashboard', icon: HomeIcon },
-    { href: '/ai-chat', labelKey: 'nav.aiChat', icon: ChatIcon },
+    // See the teacher array above — same reasoning, AI Chat unlinked, code untouched.
+    // { href: '/ai-chat', labelKey: 'nav.aiChat', icon: ChatIcon },
+    { href: '/discussions', labelKey: 'nav.discussions', icon: BookIcon },
     { href: '/subjects', labelKey: 'nav.subjects', icon: GridIcon },
     { href: '/assignments', labelKey: 'nav.assignments', icon: ClipboardIcon },
     { href: '/performance', labelKey: 'nav.performance', icon: TrendingUpIcon },
-    { href: '/timetable', labelKey: 'nav.timetable', icon: CalendarIcon },
   ],
 };
 

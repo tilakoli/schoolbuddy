@@ -28,7 +28,7 @@ export default async function SubjectOfferingPage({ params }: { params: Promise<
     supabase.from('class_schedule').select('*').eq('class_id', classId),
     supabase
       .from('materials')
-      .select('id, class_id, title, chapter, status, extracted_text, summary, error_message')
+      .select('id, class_id, title, chapter, status, extracted_text, summary, error_message, video_url')
       .eq('class_id', classId)
       .order('created_at', { ascending: false }),
     supabase.from('enrollments').select('profiles(id, full_name, email)').eq('class_group_id', classRow.class_group_id),

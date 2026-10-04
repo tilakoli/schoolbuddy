@@ -8,6 +8,9 @@ const LIMITS = {
   'voice-transcription': { max: 20, windowMinutes: 10 },
   'materials-extract': { max: 10, windowMinutes: 60 },
   'assignments-generate': { max: 10, windowMinutes: 60 },
+  'discussion-chat': { max: 20, windowMinutes: 5 },
+  'discussion-report': { max: 10, windowMinutes: 60 },
+  'discussion-draft': { max: 10, windowMinutes: 60 },
 } as const;
 
 export type AiRoute = keyof typeof LIMITS;

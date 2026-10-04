@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import { isYoutubeUrl } from '@shared/domain/learning';
 import { useLanguage } from '@/components/LanguageProvider';
 import { createClient } from '@/lib/supabase/client';
 
@@ -14,6 +15,7 @@ export interface MaterialRow {
   extracted_text: string | null;
   summary: string | null;
   error_message: string | null;
+  video_url: string | null;
 }
 
 const STATUS_STYLE: Record<MaterialRow['status'], string> = {
@@ -45,6 +47,9 @@ export default function SubjectMaterials({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string>();
+  const [editingVideoId, setEditingVideoId] = useState<string | null>(null);
+  const [videoDraft, setVideoDraft] = useState('');
+  const [videoDraftError, setVideoDraftError] = useState<string>();
 
   const updateMaterial = (material: MaterialRow) => {
     setMaterials((prev) => prev.map((m) => (m.id === material.id ? material : m)));
@@ -86,6 +91,28 @@ export default function SubjectMaterials({
     }
   };
 
+  const saveVideoLink = async (material: MaterialRow) => {
+    const trimmed = videoDraft.trim();
+    if (trimmed && !isYoutubeUrl(trimmed)) {
+      setVideoDraftError(t('materials.videoUrlInvalid'));
+      return;
+    }
+    const supabase = createClient();
+    if (!supabase) return;
+    setBusyId(material.id);
+    setVideoDraftError(undefined);
+    try {
+      const { error: updateError } = await supabase.from('materials').update({ video_url: trimmed || null }).eq('id', material.id);
+      if (updateError) throw new Error(updateError.message);
+      updateMaterial({ ...material, video_url: trimmed || null });
+      setEditingVideoId(null);
+    } catch (cause) {
+      setVideoDraftError(cause instanceof Error ? cause.message : 'Could not save the video link.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <div>
       <div className="flex items-center justify-between">
@@ -120,11 +147,44 @@ export default function SubjectMaterials({
               <div className="min-w-0">
                 <p className="truncate font-semibold text-foreground">{material.title}</p>
                 {material.chapter && <p className="mt-1 truncate text-xs text-muted-foreground">{material.chapter}</p>}
+                {material.video_url && editingVideoId !== material.id && (
+                  <a href={material.video_url} target="_blank" rel="noreferrer" className="mt-1 block truncate text-xs font-semibold text-primary">
+                    ▶ {t('materials.videoAttached')}
+                  </a>
+                )}
               </div>
               <span className={`shrink-0 rounded-full px-2 py-1 text-xs font-semibold ${STATUS_STYLE[material.status]}`}>
                 {t(STATUS_LABEL_KEY[material.status])}
               </span>
             </div>
+
+            {editingVideoId === material.id ? (
+              <div className="mt-2 space-y-2">
+                <input
+                  type="text"
+                  value={videoDraft}
+                  onChange={(event) => { setVideoDraft(event.target.value); setVideoDraftError(undefined); }}
+                  placeholder={t('materials.videoUrlOptional')}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                />
+                {videoDraftError && <p className="text-xs text-danger">{videoDraftError}</p>}
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => saveVideoLink(material)}
+                    disabled={busyId === material.id}
+                    className="rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-accent-foreground disabled:opacity-50"
+                  >
+                    {t('materials.saveVideo')}
+                  </button>
+                  <button
+                    onClick={() => { setEditingVideoId(null); setVideoDraftError(undefined); }}
+                    className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary"
+                  >
+                    {t('form.cancel')}
+                  </button>
+                </div>
+              </div>
+            ) : null}
 
             {material.status === 'extracted' && material.summary && (
               <p className="mt-2 text-sm text-muted-foreground">{material.summary}</p>
@@ -156,6 +216,15 @@ export default function SubjectMaterials({
                   {busyId === material.id ? t('materials.retrying') : t('materials.retryExtraction')}
                 </button>
               )}
+              {editingVideoId !== material.id && (
+                <button
+                  onClick={() => { setEditingVideoId(material.id); setVideoDraft(material.video_url ?? ''); setVideoDraftError(undefined); }}
+                  disabled={busyId === material.id}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary disabled:opacity-50"
+                >
+                  {t('materials.editVideo')}
+                </button>
+              )}
               <button
                 onClick={() => deleteMaterial(material)}
                 disabled={busyId === material.id}
@@ -185,6 +254,7 @@ function UploadForm({
   const { t } = useLanguage();
   const [title, setTitle] = useState('');
   const [chapter, setChapter] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [stage, setStage] = useState<'uploading' | 'extracting' | null>(null);
   const [error, setError] = useState<string>();
@@ -228,7 +298,12 @@ function UploadForm({
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     const supabase = createClient();
-    if (!supabase || files.length === 0) return;
+    const trimmedVideoUrl = videoUrl.trim();
+    if (!supabase || (files.length === 0 && !trimmedVideoUrl)) return;
+    if (trimmedVideoUrl && !isYoutubeUrl(trimmedVideoUrl)) {
+      setError(t('materials.videoUrlInvalid'));
+      return;
+    }
 
     setStage('uploading');
     setError(undefined);
@@ -255,29 +330,39 @@ function UploadForm({
           teacher_id: teacherId,
           title: title.trim(),
           chapter: chapter.trim() || null,
+          video_url: trimmedVideoUrl || null,
+          // No files to extract text from — nothing for /api/materials/extract
+          // to do, so this material is immediately "ready" rather than stuck
+          // pending forever.
+          ...(files.length === 0 ? { status: 'extracted' as const } : {}),
         })
         .select('*')
         .single();
       if (insertError || !inserted) throw new Error(insertError?.message || 'Could not save material.');
 
-      const { error: filesError } = await supabase
-        .from('material_files')
-        .insert(uploaded.map((f) => ({ material_id: materialId, ...f })));
-      if (filesError) throw new Error(filesError.message);
+      if (uploaded.length > 0) {
+        const { error: filesError } = await supabase
+          .from('material_files')
+          .insert(uploaded.map((f) => ({ material_id: materialId, ...f })));
+        if (filesError) throw new Error(filesError.message);
+      }
 
       onCreated({ ...inserted, className: '' });
       setTitle('');
       setChapter('');
+      setVideoUrl('');
       setFiles([]);
-      setStage('extracting');
 
-      const res = await fetch('/api/materials/extract', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ materialId }),
-      });
-      const updated = await res.json();
-      if (updated?.id) onUpdated({ ...updated, className: '' });
+      if (uploaded.length > 0) {
+        setStage('extracting');
+        const res = await fetch('/api/materials/extract', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ materialId }),
+        });
+        const updated = await res.json();
+        if (updated?.id) onUpdated({ ...updated, className: '' });
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Something went wrong.');
     } finally {
@@ -304,6 +389,13 @@ function UploadForm({
         />
       </div>
       <input
+        type="text"
+        placeholder={t('materials.videoUrlOptional')}
+        value={videoUrl}
+        onChange={(event) => { setVideoUrl(event.target.value); setError(undefined); }}
+        className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+      />
+      <input
         type="file"
         accept="application/pdf,image/jpeg,image/png,image/webp"
         multiple
@@ -317,7 +409,7 @@ function UploadForm({
       {error && <p className="text-sm text-danger">{error}</p>}
       <button
         type="submit"
-        disabled={!!stage || files.length === 0 || !title.trim()}
+        disabled={!!stage || (files.length === 0 && !videoUrl.trim()) || !title.trim() || (!!videoUrl.trim() && !isYoutubeUrl(videoUrl.trim()))}
         className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground disabled:opacity-50"
       >
         {stage === 'uploading' ? t('materials.uploading') : stage === 'extracting' ? t('materials.extracting') : t('materials.upload')}

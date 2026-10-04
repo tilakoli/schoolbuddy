@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type DragEvent, type FormEven
 import ReactMarkdown from 'react-markdown';
 import ChatSources from '@/components/ChatSources';
 import type { ChatGrounding } from '@shared/domain/chat';
+import { getVideoEmbedUrl } from '@shared/domain/learning';
 import type { Role } from '@shared/domain/profile';
 import { BookIcon, CheckIcon, CopyIcon, FileTextIcon, HistoryIcon, MicIcon, PaperclipIcon, PlusIcon, RefreshIcon, SendIcon, SparkleIcon, SpeakerIcon, SpeakerOffIcon, ThumbDownIcon, ThumbUpIcon, TrashIcon, XIcon } from '@/components/icons';
 import { useLanguage } from '@/components/LanguageProvider';
@@ -63,7 +64,7 @@ interface GuidedMaterial {
   id: string;
   title: string;
   chapter: string | null;
-  summary: string | null;
+  video_url: string | null;
 }
 
 const SPEECH_LANG: Record<string, string> = { en: 'en-US', hi: 'hi-IN', te: 'te-IN' };
@@ -169,6 +170,11 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
     : [t('chat.schoolPromptClasses'), t('chat.schoolPromptAssignments'), t('chat.prompt1'), t('chat.prompt2')];
   const reviewVoiceBeforeSend = role === 'admin' || role === 'vice_principal';
   const useRecorderFirst = reviewVoiceBeforeSend;
+  // A student must anchor every new conversation to a subject (and
+  // optionally a chapter) before they can type — history/past sessions
+  // remain fully usable regardless, since they already have (or
+  // deliberately lack) that context.
+  const chatLocked = role === 'student' && !guidedClassId && !activeSessionId;
 
   const loadSessions = async () => {
     const supabase = createClient();
@@ -180,7 +186,7 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
   const loadGuidedMaterials = async (classId: string, chapter: string | null) => {
     const supabase = createClient();
     if (!supabase) return;
-    let query = supabase.from('materials').select('id, title, chapter, summary').eq('class_id', classId).eq('status', 'extracted');
+    let query = supabase.from('materials').select('id, title, chapter, video_url').eq('class_id', classId).eq('status', 'extracted');
     if (chapter) query = query.eq('chapter', chapter);
     const { data } = await query.order('created_at', { ascending: false });
     setGuidedMaterials(data ?? []);
@@ -332,6 +338,7 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
     setAttachments([]);
     exitGuidedLesson();
     localStorage.setItem(activeChatStorageKey, NEW_CHAT_MARKER);
+    if (role === 'student') openPicker();
   };
 
   const transcribeRecording = async (blob: Blob) => {
@@ -710,9 +717,15 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
       setSessions(restoredSessions);
 
       const storedSessionId = localStorage.getItem(activeChatStorageKey);
-      if (storedSessionId === NEW_CHAT_MARKER) return;
+      if (storedSessionId === NEW_CHAT_MARKER) {
+        if (role === 'student') openPicker();
+        return;
+      }
       const sessionToRestore = restoredSessions.find((session) => session.id === storedSessionId) ?? restoredSessions[0];
-      if (!sessionToRestore) return;
+      if (!sessionToRestore) {
+        if (role === 'student') openPicker();
+        return;
+      }
 
       const { data: restoredMessages, error: loadError } = await supabase
         .from('ai_chat_messages')
@@ -825,12 +838,14 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
         </div>
       </div>
 
-      <div className="mt-4 flex w-fit items-center rounded-xl bg-secondary p-1 text-xs font-bold">
-        <span className="rounded-lg bg-card px-4 py-2 text-primary shadow-sm">Chat</span>
-        <button type="button" onClick={toggleListening} title={reviewVoiceBeforeSend ? 'Start voice capture for review' : 'Start voice conversation'} className={`rounded-lg px-4 py-2 ${conversationActive ? 'bg-danger text-white' : 'text-muted-foreground hover:text-foreground'}`}>Voice <span className="ml-1 font-normal opacity-70">Beta</span></button>
-        <span className="cursor-not-allowed rounded-lg px-4 py-2 text-muted-foreground/50" title="Planned for a future release">Avatar <span className="ml-1 font-normal">Soon</span></span>
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex w-fit items-center rounded-xl bg-secondary p-1 text-xs font-bold">
+          <span className="rounded-lg bg-card px-4 py-2 text-primary shadow-sm">Chat</span>
+          <button type="button" onClick={toggleListening} title={reviewVoiceBeforeSend ? 'Start voice capture for review' : 'Start voice conversation'} className={`rounded-lg px-4 py-2 ${conversationActive ? 'bg-danger text-white' : 'text-muted-foreground hover:text-foreground'}`}>Voice <span className="ml-1 font-normal opacity-70">Beta</span></button>
+          <span className="cursor-not-allowed rounded-lg px-4 py-2 text-muted-foreground/50" title="Planned for a future release">Avatar <span className="ml-1 font-normal">Soon</span></span>
+        </div>
+        {availableVoices.length > 0 && <div className="flex items-center gap-2 text-xs text-muted-foreground"><span>Voice</span><select value={selectedVoice} onChange={(event) => { setSelectedVoice(event.target.value); localStorage.setItem('schoolbuddy-voice', event.target.value); }} className="max-w-48 rounded-lg border border-border bg-card px-2 py-1.5 text-xs text-foreground"><option value="">Best available</option>{availableVoices.filter((voice) => voice.lang.startsWith((SPEECH_LANG[language] ?? 'en').split('-')[0])).map((voice, index) => <option key={`${voice.voiceURI}-${voice.lang}-${index}`} value={voice.name}>{voice.name}</option>)}</select></div>}
       </div>
-      {availableVoices.length > 0 && <div className="mt-2 flex items-center gap-2 self-end text-xs text-muted-foreground"><span>Voice</span><select value={selectedVoice} onChange={(event) => { setSelectedVoice(event.target.value); localStorage.setItem('schoolbuddy-voice', event.target.value); }} className="max-w-48 rounded-lg border border-border bg-card px-2 py-1.5 text-xs text-foreground"><option value="">Best available</option>{availableVoices.filter((voice) => voice.lang.startsWith((SPEECH_LANG[language] ?? 'en').split('-')[0])).map((voice, index) => <option key={`${voice.voiceURI}-${voice.lang}-${index}`} value={voice.name}>{voice.name}</option>)}</select></div>}
 
       {historyOpen && <div className="fixed inset-0 z-10" onClick={() => setHistoryOpen(false)} />}
 
@@ -944,20 +959,37 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
             <div className="ai-glow flex h-14 w-14 items-center justify-center rounded-2xl bg-accent/10">
               <SparkleIcon width={26} height={26} className="text-accent" />
             </div>
-            <h2 className="mt-4 text-base font-semibold text-foreground">{t('chat.howCanIHelp')}</h2>
-            <p className="mt-1 max-w-xs text-sm text-muted-foreground">{t('chat.tryOneOfThese')}</p>
-            <div className="mt-6 grid w-full max-w-md gap-2 sm:grid-cols-2">
-              {suggestedPrompts.map((prompt) => (
+            {chatLocked ? (
+              <>
+                <h2 className="mt-4 text-base font-semibold text-foreground">{t('guided.pickSubjectFirst')}</h2>
+                <p className="mt-1 max-w-xs text-sm text-muted-foreground">{t('guided.pickSubjectFirstHint')}</p>
                 <button
-                  key={prompt}
                   type="button"
-                  onClick={(event) => send(event, prompt)}
-                  className="rounded-lg border border-border bg-card px-3 py-2.5 text-left text-xs font-medium text-foreground shadow-sm hover:bg-secondary"
+                  onClick={openPicker}
+                  className="mt-6 flex items-center gap-2 rounded-lg bg-accent px-4 py-2.5 text-sm font-semibold text-accent-foreground"
                 >
-                  {prompt}
+                  <BookIcon width={16} height={16} />
+                  {t('guided.chooseSubject')}
                 </button>
-              ))}
-            </div>
+              </>
+            ) : (
+              <>
+                <h2 className="mt-4 text-base font-semibold text-foreground">{t('chat.howCanIHelp')}</h2>
+                <p className="mt-1 max-w-xs text-sm text-muted-foreground">{t('chat.tryOneOfThese')}</p>
+                <div className="mt-6 grid w-full max-w-md gap-2 sm:grid-cols-2">
+                  {suggestedPrompts.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      onClick={(event) => send(event, prompt)}
+                      className="rounded-lg border border-border bg-card px-3 py-2.5 text-left text-xs font-medium text-foreground shadow-sm hover:bg-secondary"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
         {messages.map((message, i) => (
@@ -1028,42 +1060,103 @@ export default function AiChat({ role, userId }: { role: Role; userId: string })
         {error && <p className="text-sm text-danger">{error}</p>}
       </div>
 
-      {attachments.length > 0 && <div className="mt-3 flex flex-wrap gap-2">{attachments.map((file, index) => <div key={`${file.name}-${index}`} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-xs shadow-sm"><PaperclipIcon width={13} className="text-primary" /><span className="max-w-40 truncate font-semibold text-foreground">{file.name}</span><button type="button" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} aria-label={`Remove ${file.name}`} className="text-muted-foreground hover:text-danger"><XIcon width={12} /></button></div>)}</div>}
-      {dictationListening && !conversationActive && <div className="mt-3 flex items-center gap-2 rounded-lg bg-danger/10 px-3 py-2 text-xs font-semibold text-danger"><span className="h-2 w-2 animate-pulse rounded-full bg-danger" />{useRecorderFirst ? 'Listening — transcript appears after you pause' : 'Listening — your words appear below in real time'}</div>}
-      {transcribing && <div className="mt-3 flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 text-xs font-semibold text-primary"><span className="h-2 w-2 animate-pulse rounded-full bg-primary" />Transcribing your recording…</div>}
-      <form onSubmit={send} className="mt-3 flex items-center gap-2 rounded-xl border border-border bg-card p-2 shadow-md">
-        <input ref={fileInputRef} type="file" multiple accept=".pdf,.txt,.jpg,.jpeg,.png,.webp" className="hidden" onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ''; }} />
-        <button type="button" onClick={() => fileInputRef.current?.click()} disabled={loading || attachments.length >= 3} aria-label="Attach files" title="Attach files" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary hover:text-primary disabled:opacity-40"><PaperclipIcon width={17} /></button>
+      <form onSubmit={send} className="mt-3 w-full rounded-2xl border border-border bg-card p-3 shadow-md">
         <input
           type="text"
           value={input}
           onChange={(event) => setInput(event.target.value)}
-          placeholder={t('chat.placeholder')}
-          className="flex-1 bg-transparent px-2 py-1.5 text-sm text-foreground outline-none"
+          placeholder={chatLocked ? t('guided.pickSubjectFirst') : t('chat.placeholder')}
+          disabled={chatLocked}
+          className="w-full bg-transparent px-2 py-1.5 text-sm text-foreground outline-none disabled:cursor-not-allowed"
         />
-        <button type="button" onClick={toggleDictation} disabled={loading || transcribing || conversationActive} aria-label={dictationListening ? 'Stop voice dictation' : 'Start voice dictation'} title={dictationListening ? 'Stop dictation' : 'Dictate message'} className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${dictationListening ? 'bg-danger text-white' : 'text-muted-foreground hover:bg-secondary hover:text-primary'} disabled:opacity-35`}><MicIcon width={17} /></button>
-        <button
-          type="submit"
-          disabled={!input.trim() || loading}
-          aria-label="Send"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground disabled:opacity-50"
-        >
-          <SendIcon className="h-4 w-4" />
-        </button>
+        {attachments.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2 px-2">
+            {attachments.map((file, index) => (
+              <div key={`${file.name}-${index}`} className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 text-xs shadow-sm">
+                <PaperclipIcon width={12} className="text-primary" />
+                <span className="max-w-32 truncate font-semibold text-foreground">{file.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))}
+                  aria-label={`Remove ${file.name}`}
+                  className="text-muted-foreground hover:text-danger"
+                >
+                  <XIcon width={11} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {dictationListening && !conversationActive && (
+          <p className="mt-2 px-2 text-xs font-semibold text-danger">
+            {useRecorderFirst ? 'Listening — transcript appears after you pause' : 'Listening — your words appear below in real time'}
+          </p>
+        )}
+        {transcribing && <p className="mt-2 px-2 text-xs font-semibold text-primary">Transcribing your recording…</p>}
+        <div className="mt-2 flex items-center justify-between gap-2 border-t border-border-soft pt-2">
+          <div className="flex items-center gap-2">
+            <input ref={fileInputRef} type="file" multiple accept=".pdf,.txt,.jpg,.jpeg,.png,.webp" className="hidden" onChange={(event) => { addFiles(Array.from(event.target.files ?? [])); event.target.value = ''; }} />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading || chatLocked || attachments.length >= 3}
+              aria-label="Attach files"
+              title="Attach files"
+              className="flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-xs font-semibold text-foreground hover:bg-secondary disabled:opacity-40"
+            >
+              <PaperclipIcon width={14} />
+              {t('lessons.upload')}
+            </button>
+            <button
+              type="button"
+              onClick={toggleDictation}
+              disabled={loading || chatLocked || transcribing || conversationActive}
+              aria-label={dictationListening ? 'Stop voice dictation' : 'Start voice dictation'}
+              title={dictationListening ? 'Stop dictation' : 'Dictate message'}
+              className={`flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold disabled:opacity-40 ${
+                dictationListening ? 'border-danger bg-danger/10 text-danger' : 'border-border text-foreground hover:bg-secondary'
+              }`}
+            >
+              <MicIcon width={14} />
+              {dictationListening ? t('lessons.recording') : transcribing ? t('lessons.transcribing') : t('lessons.record')}
+            </button>
+          </div>
+          <button
+            type="submit"
+            disabled={!input.trim() || loading || chatLocked}
+            aria-label="Send"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-foreground disabled:opacity-50"
+          >
+            <SendIcon className="h-4 w-4" />
+          </button>
+        </div>
       </form>
         </div>
 
         {guidedClassId && (
           <aside className="hidden overflow-y-auto rounded-xl border border-border bg-card p-3 lg:block">
-            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('guided.notes')}</p>
-            {guidedMaterials.length === 0 && <p className="mt-2 text-xs text-muted-foreground">{t('guided.noNotes')}</p>}
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">{t('guided.videos')}</p>
+            {(selectedMaterialId ? guidedMaterials.filter((material) => material.id === selectedMaterialId) : guidedMaterials).filter((material) => material.video_url).length === 0 && (
+              <p className="mt-2 text-xs text-muted-foreground">{t('guided.noVideos')}</p>
+            )}
             <div className="mt-2 space-y-3">
-              {(selectedMaterialId ? guidedMaterials.filter((material) => material.id === selectedMaterialId) : guidedMaterials).map((material) => (
-                <div key={material.id} className="rounded-lg border border-border-soft p-2">
-                  <p className="text-xs font-semibold text-foreground">{material.title}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{material.summary || t('guided.noNotes')}</p>
-                </div>
-              ))}
+              {(selectedMaterialId ? guidedMaterials.filter((material) => material.id === selectedMaterialId) : guidedMaterials)
+                .filter((material) => material.video_url)
+                .map((material) => {
+                  const embedUrl = material.video_url ? getVideoEmbedUrl(material.video_url) : null;
+                  return (
+                    <div key={material.id} className="rounded-lg border border-border-soft p-2">
+                      <p className="text-xs font-semibold text-foreground">{material.title}</p>
+                      {embedUrl ? (
+                        <div className="mt-2 aspect-video w-full overflow-hidden rounded-lg">
+                          <iframe src={embedUrl} title={material.title} allowFullScreen className="h-full w-full" />
+                        </div>
+                      ) : (
+                        <p className="mt-1 text-xs text-muted-foreground">{t('guided.noVideos')}</p>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           </aside>
         )}
